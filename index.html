@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Участки на карте</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.js"></script>
+<script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js"></script>
+<style>
+:root{--bg:#fff;--fg:#1d2430;--muted:#6b7280;--line:#e5e7eb;--panel:#f8fafc;--accent:#2563eb;--sel:#fde047}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#111418;--fg:#e6e9ee;--muted:#9aa3ae;--line:#2a3038;--panel:#171b21;--accent:#60a5fa;--sel:#facc15}}
+:root[data-theme="dark"]{--bg:#111418;--fg:#e6e9ee;--muted:#9aa3ae;--line:#2a3038;--panel:#171b21;--accent:#60a5fa;--sel:#facc15}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+#app{display:flex;height:100%}
+#side{width:340px;max-width:100%;display:flex;flex-direction:column;border-right:1px solid var(--line);background:var(--panel)}
+#side header{padding:12px 14px;border-bottom:1px solid var(--line)}
+#side h1{font-size:16px;margin:0 0 8px}
+.row{display:flex;gap:6px;margin-top:6px}
+input,select{width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);font:inherit;min-width:0}
+#stat{color:var(--muted);font-size:12px;margin-top:8px}
+#list{flex:1;overflow:auto;margin:0;padding:0;list-style:none}
+#list li{padding:8px 14px;border-bottom:1px solid var(--line);cursor:pointer}
+#list li:hover{background:var(--bg)}
+#list li.nomap{opacity:.55;cursor:default}
+#list .c{font-weight:600;font-variant-numeric:tabular-nums}
+#list .s{color:var(--muted);font-size:12px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
+#map{flex:1;height:100%}
+#legend{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:8px;font-size:12px;color:var(--muted)}
+#toggle{display:none}
+.leaflet-popup-content{font-size:13px;line-height:1.45;margin:10px 12px}
+.pp b{font-size:14px}
+.pp table{border-collapse:collapse;margin-top:4px}
+.pp td{padding:1px 8px 1px 0;vertical-align:top}
+.pp td:first-child{color:var(--muted);white-space:nowrap}
+.pp a{color:var(--accent)}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--popBg,#fff);color:var(--popFg,#1d2430)}
+.leaflet-tile-pane .tf{filter:var(--tileFilter,none)}
+.leaflet-glPane-pane{pointer-events:none}
+#themeBox{background:var(--panel);color:var(--fg);padding:4px 6px;border-radius:6px;font:12px system-ui;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+#themeBox select{width:auto;padding:2px 4px;font-size:12px}
+@media (max-width:760px){
+  #app{flex-direction:column}
+  #side{width:100%;height:auto;max-height:45%;border-right:0;border-bottom:1px solid var(--line)}
+  #side.closed #list,#side.closed .row,#side.closed #legend{display:none}
+  #toggle{display:inline-block;float:right;padding:4px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);font:inherit}
+  #side header{padding:10px 16px}
+  #list li{padding:8px 16px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="side">
+    <header>
+      <button id="toggle" type="button">Список</button>
+      <h1>Участки: Симферопольский р-н и Алушта</h1>
+      <input id="q" type="search" placeholder="Кадастровый номер или адрес">
+      <div class="row">
+        <select id="sh"><option value="">Все поселения</option></select>
+        <select id="pr">
+          <option value="">Любая цена</option>
+          <option value="0-2000000">до 2 млн</option>
+          <option value="2000000-3500000">2–3,5 млн</option>
+          <option value="3500000-5000000">3,5–5 млн</option>
+          <option value="5000000-999999999">от 5 млн</option>
+        </select>
+      </div>
+      <div id="legend"></div>
+      <div id="stat"></div>
+    </header>
+    <ul id="list"></ul>
+  </aside>
+  <div id="map"></div>
+</div>
+<script src="data/objects.js?v=202611100953"></script>
+<script src="data/grid/index.js?v=202611100953"></script>
+<script>
+const THEMES = {};
+// Theme: обычная. A theme is one object in THEMES; every file in themes\ is inlined by build.ps1.
+// Fields: label, vars (panel CSS colours), css (extra CSS), tileFilter (CSS filter on map tiles),
+// grid (style of the cadastral grid), ours(color) (style of our plots), marker(color), point(color).
+THEMES.obychnaya = {
+  label: "Обычная",
+  vars: {bg:"#ffffff", fg:"#1d2430", muted:"#6b7280", line:"#e5e7eb", panel:"#f8fafc", accent:"#2563eb", popBg:"#ffffff", popFg:"#1d2430"},
+  css: "",
+  tileFilter: "none",
+  grid: {color:"#ef4444", weight:1, opacity:.9, fillColor:"#ef4444", fillOpacity:.04},
+  ours: c => ({color:c, weight:2, fillColor:c, fillOpacity:.35}),
+  marker: c => ({radius:5, color:"#ffffff", weight:1, fillColor:c, fillOpacity:1}),
+  point: c => ({radius:7, color:c, weight:2, dashArray:"3 3", fillOpacity:.15}),
+  colorOf: null
+};
+
+// Theme: киберпанк (Cyberpunk 2077 look: night city, red grid, blue plots, HUD panel).
+// Optional module: delete this file and rebuild to ship the map without it.
+THEMES.kiberpank = {
+  label: "Киберпанк",
+  vars: {bg:"#07070d", fg:"#e8f7ff", muted:"#7fb8c9", line:"#1d3a4a", panel:"#0b0b16", accent:"#05d9e8", popBg:"#0b0b16", popFg:"#e8f7ff"},
+  fontUrl: "https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=Share+Tech+Mono&display=swap",
+  css: `
+    body{font-family:"Rajdhani","Share Tech Mono",system-ui,sans-serif;letter-spacing:.02em}
+    #side{border-right:1px solid #ff2a6d;box-shadow:0 0 18px rgba(255,42,109,.25) inset}
+    #side h1{color:#fcee0a;text-transform:uppercase;letter-spacing:.08em;text-shadow:0 0 6px rgba(252,238,10,.6)}
+    #list .c{font-family:"Share Tech Mono",monospace;color:#05d9e8}
+    #list li:hover{background:#12122a;box-shadow:inset 3px 0 0 #ff2a6d}
+    input,select{border-color:#1d3a4a;box-shadow:0 0 0 1px rgba(5,217,232,.15) inset}
+    .leaflet-popup-content-wrapper{border:1px solid #ff2a6d;box-shadow:0 0 14px rgba(255,42,109,.45)}
+    .pp b{font-family:"Share Tech Mono",monospace;color:#05d9e8}
+    .pp a{color:#fcee0a}
+    .leaflet-control-layers,.leaflet-bar a{background:#0b0b16;color:#e8f7ff;border-color:#ff2a6d}
+  `,
+  // Night-city look on top of any basemap: darken, push towards blue/magenta.
+  tileFilter: "brightness(.55) contrast(1.35) saturate(1.6) hue-rotate(185deg)",
+  grid: {color:"#ff2a6d", weight:1, opacity:1, fillColor:"#ff2a6d", fillOpacity:.06},
+  ours: () => ({color:"#05d9e8", weight:2, fillColor:"#05d9e8", fillOpacity:.3}),
+  marker: () => ({radius:5, color:"#fcee0a", weight:1, fillColor:"#05d9e8", fillOpacity:1}),
+  point: () => ({radius:7, color:"#fcee0a", weight:2, dashArray:"3 3", fillOpacity:.1}),
+  // All our plots are blue here; settlements still differ in the list legend.
+  colorOf: () => "#05d9e8",
+  // 2GIS works everywhere (tablets included) and is recoloured below, so the theme switches to it.
+  preferBase: "gis",
+  // Pixel recolour of 2GIS tiles by colour class: background black, buildings red, main roads cyan,
+  // minor streets dark cyan, water dark blue, parks near-black green, dark labels light cyan.
+  recolor: (r, g, b) => {
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, l = (mx + mn) / 510;
+    const s = d === 0 ? 0 : d / (255 - Math.abs(mx + mn - 255));
+    let h = 0;
+    if (d) { h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; if (h < 0) h += 360; }
+    // Thresholds measured on real 2GIS tiles: background #F0F0E0/#F0E8D0, streets #F8F8F8, main roads #F8F0D8,
+    // buildings #D8D8C0..#C8C0B0, parks #B8D880.
+    if (h >= 185 && h <= 235 && s > .25 && l < .9) return [6, 24, 46];             // water
+    if (h >= 70 && h <= 170 && s > .2 && l < .86) return [10, 26, 20];             // parks, forest
+    if (h >= 25 && h <= 60 && s > .6 && l > .86) return [5, 217, 232];             // main roads (light yellow)
+    if (h >= 15 && h <= 45 && s > .6 && l > .55 && l <= .86) return [5, 217, 232]; // highways (orange)
+    if (l > .945 && s < .5) return [14, 120, 135];                                  // streets (white)
+    if (l > .84) return [7, 7, 13];                                                 // background
+    if (l > .6 && s < .4) return [122, 20, 36];                                     // buildings
+    if (l < .5 && s < .3) return [184, 244, 255];                                   // labels, house numbers
+    return [Math.round(r * .35), Math.round(g * .35), Math.round(b * .5)];         // icons and the rest, dimmed
+  },
+  // Satellite stays usable in this theme through a CSS filter; 2GIS tiles are recoloured instead.
+  // Recolour the OpenFreeMap vector style: black ground, dark-blue water, red buildings, cyan roads, yellow places.
+  vector: (s, mode) => {
+    for (const l of s.layers) {
+      const p = l.paint = l.paint || {}; const sl = l["source-layer"] || ""; const f = JSON.stringify(l.filter || "");
+      if (l.type === "background") p["background-color"] = "#07070d";
+      else if (l.type === "fill") {
+        delete p["fill-pattern"];
+        if (sl === "water") { p["fill-color"] = "#06182e"; p["fill-opacity"] = 1; }
+        else if (sl === "building") { p["fill-color"] = "#7a1424"; p["fill-opacity"] = .9; p["fill-outline-color"] = "#ff2a6d"; }
+        else { p["fill-color"] = "#0c0c16"; p["fill-opacity"] = .7; }
+      }
+      else if (l.type === "fill-extrusion") { p["fill-extrusion-color"] = "#8b1a2b"; p["fill-extrusion-opacity"] = .85; }
+      else if (l.type === "line") {
+        delete p["line-pattern"];
+        if (sl === "transportation") { p["line-color"] = /motorway|trunk|primary/.test(f) ? "#05d9e8" : "#0e8c99"; p["line-opacity"] = mode === "hybrid" ? .8 : 1; }
+        else if (sl === "waterway") p["line-color"] = "#0a3a66";
+        else if (sl === "boundary") p["line-color"] = "#ff2a6d";
+        else p["line-color"] = "#1d3a4a";
+      }
+      else if (l.type === "symbol") {
+        p["text-color"] = /place/.test(sl) ? "#fcee0a" : "#05d9e8";
+        p["text-halo-color"] = "#000000"; p["text-halo-width"] = 1.2;
+        if (/poi/.test(sl)) { l.layout = l.layout || {}; l.layout.visibility = "none"; }
+      }
+      else if (l.type === "hillshade" || l.type === "raster") { l.layout = l.layout || {}; l.layout.visibility = "none"; }
+    }
+    return s;
+  }
+};
+
+// Site build: objects come from data/objects.js (window.OBJECTS); single-file build inlines them here.
+const DATA = window.OBJECTS || [];
+// Plots without an NSPD outline arrive with an empty geometry object.
+for (const d of DATA) {
+  if (!d.g || !Array.isArray(d.g.coordinates)) { d.g = null; continue; }
+  // NSPD gives a point instead of an outline when the plot has no surveyed boundary.
+  d.point = d.g.type === "Point";
+  // Drop positions outside Crimea: they come from mistyped cadastral numbers.
+  let lon = 0, lat = 0, k = 0; const walk = c => Array.isArray(c[0]) ? c.forEach(walk) : (lon += c[0], lat += c[1], k++); walk(d.g.coordinates);
+  lon /= k; lat /= k; if (lon < 32.4 || lon > 36.7 || lat < 44.3 || lat > 46.3) { d.g = null; d.point = false; d.bad = true; }
+}
+const NEIGH = [];
+const BUILT = "10.11.2026";
+const COLORS = {"Трудовское":"#e11d48","Перовское":"#2563eb","Мирновское":"#16a34a","Чистенское":"#d97706","Добровское":"#7c3aed"};
+const PALETTE = ["#0891b2","#db2777","#65a30d","#ea580c","#4f46e5","#0d9488","#b45309","#9333ea","#dc2626","#0284c7","#ca8a04","#059669"];
+const col = s => { if (COLORS[s]) return COLORS[s]; let h = 0; for (const ch of String(s||"")) h = (h*31 + ch.charCodeAt(0)) >>> 0; return PALETTE[h % PALETTE.length]; };
+// Current theme; defined before any layer is built because layer styles call theme().
+let themeKey = "obychnaya";
+try { const k = localStorage.getItem("mapTheme"); if (k && THEMES[k]) themeKey = k; } catch (e) {}
+if (!THEMES[themeKey]) themeKey = Object.keys(THEMES)[0];
+const FALLBACK = {grid:{color:"#ef4444",weight:1,fillOpacity:.04}, ours:c=>({color:c,weight:2,fillColor:c,fillOpacity:.35}), marker:c=>({radius:5,color:"#fff",weight:1,fillColor:c,fillOpacity:1}), point:c=>({radius:7,color:c,weight:2,dashArray:"3 3",fillOpacity:.15})};
+function theme(){ return THEMES[themeKey] || FALLBACK; }
+function colOf(s){ const t = theme(); return t.colorOf ? t.colorOf(s) : col(s); }
+const themeStyle = document.createElement("style"); document.head.appendChild(themeStyle);
+const fmt = n => n==null ? "—" : Math.round(n).toLocaleString("ru-RU");
+const esc = s => String(s??"").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+const map = L.map("map", {preferCanvas:true}).setView([44.95, 34.1], 10);
+// Basemaps. Streets come from OpenFreeMap vector tiles (OpenStreetMap data, Russian names, free incl. commercial use).
+// The vector map is drawn in its own pane above the satellite and below our plots; themes recolour it.
+map.createPane("glPane"); map.getPane("glPane").style.zIndex = 350;
+const sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {maxZoom:19, attribution:"© Esri", className:"tf"});
+const satPlain = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {maxZoom:19, attribution:"© Esri", className:"tf"});
+const GL_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+const EMPTY_STYLE = {version:8, sources:{}, layers:[]};
+const glHybrid = (typeof L.maplibreGL !== "function") ? L.layerGroup() : L.maplibreGL({style:EMPTY_STYLE, pane:"glPane", interactive:false, attribution:"© OpenStreetMap, OpenFreeMap"});
+const glScheme = (typeof L.maplibreGL !== "function") ? L.layerGroup() : L.maplibreGL({style:EMPTY_STYLE, pane:"glPane", interactive:false, attribution:"© OpenStreetMap, OpenFreeMap"});
+const hybrid = L.layerGroup([sat, glHybrid]);
+const scheme = L.layerGroup([glScheme]);
+// Diagnostics for the vector basemap: if it cannot start (old tablet browser, no WebGL), say why on screen.
+let usingFallback = false;
+const glDiag = L.control({position:"bottomleft"});
+glDiag.onAdd = () => { const d = L.DomUtil.create("div"); d.id = "glDiag"; d.style.cssText = "display:none;max-width:320px;background:#fff3cd;color:#5c4400;border:1px solid #e0b400;border-radius:6px;padding:6px 8px;font:12px system-ui"; return d; };
+glDiag.addTo(map);
+function useFallback(why){
+  usingFallback = true;
+  console.warn("Vector basemap problem:", why);
+  const el = document.getElementById("glDiag");
+  if (el) { el.style.display = "block"; el.textContent = "Схема OpenStreetMap и подписи гибрида не загрузились: " + why + ". Выберите «Схема 2ГИС» справа вверху."; }
+}
+function webglInfo(){
+  try { const c = document.createElement("canvas"); return c.getContext("webgl2") ? "webgl2" : (c.getContext("webgl") ? "webgl1" : "нет WebGL"); } catch (e) { return "нет WebGL"; }
+}
+if (typeof maplibregl === "undefined" || typeof L.maplibreGL !== "function") useFallback("библиотека карты не загрузилась");
+else if (webglInfo() === "нет WebGL") useFallback("браузер без WebGL");
+// Watch each vector layer: report its own errors and a style that never finishes loading.
+for (const lyr of [glHybrid, glScheme]) lyr.on("add", () => {
+  const gm = lyr.getMaplibreMap && lyr.getMaplibreMap(); if (!gm) return;
+  gm.on("error", ev => useFallback("ошибка карты (" + (ev && ev.error && ev.error.message || "неизвестно") + ", " + webglInfo() + ")"));
+  setTimeout(() => { if (!map.hasLayer(lyr) || !baseStyle) return; let ok = false; try { ok = gm.getStyle().layers.length > 0; } catch (e) {} if (!ok) useFallback("стиль не применился за 25 с (" + webglInfo() + ")"); }, 25000);
+});
+setTimeout(() => { if (!baseStyle && !usingFallback) useFallback("не удалось получить стиль с tiles.openfreemap.org"); }, 25000);let baseStyle = null;
+// Street and place names in Russian where OSM has them; road number shields keep their refs.
+function ruLabels(s){
+  for (const l of s.layers) if (l.type === "symbol" && l.layout && l.layout["text-field"] && !/shield/.test(l.id))
+    l.layout["text-field"] = ["coalesce", ["get","name:ru"], ["get","name"]];
+  return s;
+}
+// mode "hybrid": only roads and labels, drawn over the satellite; mode "scheme": the full street map.
+function buildStyle(mode){
+  let s = ruLabels(JSON.parse(JSON.stringify(baseStyle)));
+  if (mode === "hybrid") {
+    s.layers = s.layers.filter(l => l.type === "symbol" || (l.type === "line" && l["source-layer"] === "transportation"));
+    for (const l of s.layers) {
+      l.paint = l.paint || {};
+      if (l.type === "line") l.paint["line-opacity"] = .55;
+      if (l.type === "symbol") { l.paint["text-color"] = "#ffffff"; l.paint["text-halo-color"] = "rgba(0,0,0,.85)"; l.paint["text-halo-width"] = 1.4; }
+    }
+  }
+  const t = theme(); if (t.vector) s = t.vector(s, mode) || s;
+  return s;
+}
+function refreshGL(){
+  if (!baseStyle) return;
+  for (const [lyr, mode] of [[glHybrid,"hybrid"],[glScheme,"scheme"]]) {
+    const st = buildStyle(mode); lyr.options.style = st;
+    const gm = lyr.getMaplibreMap && lyr.getMaplibreMap(); if (gm) gm.setStyle(st);
+  }
+}
+fetch(GL_STYLE_URL).then(r => r.json()).then(s => { baseStyle = s; refreshGL(); }).catch(e => useFallback("не удалось получить стиль: " + e));
+// 2GIS street map: Russian names, full Crimea coverage, loads from a local file on tablets.
+// Note: direct use of 2GIS tiles is outside their official API terms (grey area, agreed with the owner).
+// Each 2GIS tile is drawn into a canvas so a theme can recolour its pixels (theme.recolor(r,g,b) -> [r,g,b]).
+// 2GIS sends CORS headers, so pixels are readable; without a recolour function the tile is shown as is.
+const RecolorTiles = L.GridLayer.extend({
+  createTile(coords, done){
+    const c = document.createElement("canvas"); c.width = c.height = 256;
+    const img = new Image(); img.crossOrigin = "anonymous";
+    const sub = "123"[(coords.x + coords.y) % 3];
+    img.onload = () => {
+      const ctx = c.getContext("2d", {willReadFrequently:true}); ctx.drawImage(img, 0, 0);
+      const fn = theme().recolor;
+      if (fn) { try { const im = ctx.getImageData(0, 0, 256, 256), p = im.data;
+        for (let i = 0; i < p.length; i += 4) { const o = fn(p[i], p[i+1], p[i+2]); p[i] = o[0]; p[i+1] = o[1]; p[i+2] = o[2]; }
+        ctx.putImageData(im, 0, 0); } catch (e) {} }
+      done(null, c);
+    };
+    img.onerror = () => done(new Error("tile"), c);
+    img.src = `https://tile${sub}.maps.2gis.com/tiles?x=${coords.x}&y=${coords.y}&z=${coords.z}&v=1`;
+    return c;
+  }
+});
+const gis = new RecolorTiles({maxZoom:18, attribution:"© 2ГИС"});
+const BASES = {"Схема 2ГИС": gis, "Гибрид (спутник + улицы)": hybrid, "Схема OpenStreetMap": scheme, "Спутник": satPlain};
+let baseName = "Схема 2ГИС";
+try { const b = localStorage.getItem("mapBase"); if (b && BASES[b]) baseName = b; } catch (e) {}
+BASES[baseName].addTo(map);
+map.on("baselayerchange", e => { try { localStorage.setItem("mapBase", e.name); } catch (err) {} });
+// All other plots of the village from NSPD, drawn under ours as thin outlines.
+const ours = new Set(DATA.map(d => d.cad));
+// One shared canvas: a second canvas renderer would sit on top and swallow clicks meant for the other.
+const nRender = map.getRenderer(L.polygon([[0,0],[0,0],[0,0]]));
+const neigh = L.layerGroup();
+for (const n of NEIGH) {
+  if (!n.g || ours.has(n.cad)) continue;
+  const p = L.geoJSON(n.g, {renderer:nRender, style:() => theme().grid});
+  p.bindPopup(() => nPopup(n, p), {maxWidth:320});
+  p.bindTooltip(n.cad, {sticky:true});
+  neigh.addLayer(p);
+}
+// Site build: the grid is split into square chunks (data/grid/<x>_<y>.js, listed in window.GRID_INDEX);
+// only chunks in view are loaded, and only when zoomed in. Chunks are plain scripts so they also load from a local folder.
+const GRID = window.GRID_INDEX || null;
+const gridLoaded = new Set();
+window.gridChunk = (key, items) => {
+  for (const n of items) {
+    if (!n.g || ours.has(n.cad)) continue;
+    const p = L.geoJSON(n.g, {renderer:nRender, style:() => theme().grid});
+    p.bindPopup(() => nPopup(n, p), {maxWidth:320});
+    p.bindTooltip(n.cad, {sticky:true});
+    neigh.addLayer(p);
+  }
+};
+function loadGridView(){
+  if (!GRID || !gridUserOn || map.getZoom() < GRID_ZOOM) return;
+  const b = map.getBounds(), s = GRID.step;
+  for (let x = Math.floor(b.getWest()/s); x <= Math.floor(b.getEast()/s); x++)
+    for (let y = Math.floor(b.getSouth()/s); y <= Math.floor(b.getNorth()/s); y++) {
+      const k = x + "_" + y; if (!GRID.keys[k] || gridLoaded.has(k)) continue;
+      gridLoaded.add(k);
+      const sc = document.createElement("script"); sc.src = "data/grid/" + k + ".js?v=" + GRID.v; document.head.appendChild(sc);
+    }
+}
+// Grid is shown only at zoom >= 15; userOn tracks the checkbox in the layers control.
+const GRID_ZOOM = 15; let gridUserOn = true, gridSwitching = false;
+function syncGrid(){
+  if (!NEIGH.length && !GRID) return;
+  loadGridView();
+  const want = gridUserOn && map.getZoom() >= GRID_ZOOM, has = map.hasLayer(neigh);
+  gridSwitching = true;
+  if (want && !has) neigh.addTo(map); else if (!want && has) map.removeLayer(neigh);
+  gridSwitching = false;
+}
+map.on("zoomend", syncGrid);
+map.on("moveend", loadGridView);
+map.on("overlayadd", e => { if (e.layer === neigh && !gridSwitching) { gridUserOn = true; syncGrid(); } });
+map.on("overlayremove", e => { if (e.layer === neigh && !gridSwitching) gridUserOn = false; });
+const overlays = (NEIGH.length || GRID) ? {[`Кадастровая сетка (${GRID ? GRID.total : neigh.getLayers().length})`]: neigh} : null;
+const baseCtl = L.control.layers(BASES, overlays, {position:"topright", collapsed:innerWidth<=760}); baseCtl.addTo(map);
+syncGrid();
+
+function nspdLink(lyr){
+  const c = lyr.getBounds().getCenter();
+  const x = c.lng * 20037508.34 / 180;
+  const y = Math.log(Math.tan((90 + c.lat) * Math.PI / 360)) * 20037508.34 / Math.PI;
+  return `https://nspd.gov.ru/map?theme_id=1&coordinate_x=${x.toFixed(1)}&coordinate_y=${y.toFixed(1)}&zoom=18&baseLayerId=235&active_layers=36048`;
+}
+function nPopup(n, lyr){
+  const rows = [
+    ["Площадь", n.area ? fmt(n.area)+" м² ("+(n.area/100).toFixed(1).replace(".",",")+" сот.)" : "—"],
+    ["Кад. стоимость", n.cost ? fmt(n.cost)+" ₽" : "—"],
+    ["Использование", n.use || "—"],
+    ["Адрес", n.addr || "—"]
+  ];
+  return `<div class="pp"><b>${esc(n.cad)}</b> <span style="color:#6b7280">не в нашей базе</span><table>${rows.map(r=>`<tr><td>${r[0]}</td><td>${esc(r[1])}</td></tr>`).join("")}</table><div style="margin-top:6px"><a href="${nspdLink(lyr)}" target="_blank" rel="noopener">Открыть на НСПД</a></div></div>`;
+}
+
+function popup(d){
+  const rows = [
+    [d.avSt === "active" ? "Цена (Авито)" : "Цена", d.price ? fmt(d.price)+" ₽" : "—"],
+    ...(d.basePrice && d.basePrice !== d.price ? [["Цена в базе", fmt(d.basePrice)+" ₽"]] : []),
+    ...(d.avSt && d.avSt !== "active" ? [["Объявление", "снято с Авито или недоступно"]] : []),
+    ["Площадь", d.area ? fmt(d.area)+" м² ("+(d.area/100).toFixed(1).replace(".",",")+" сот.)" : "—"],
+    ["Кад. стоимость", d.cost ? fmt(d.cost)+" ₽" : "—"],
+    ["Поселение", d.sheet || "—"],
+    ["Населённый пункт", d.vill || "—"],
+    ["Категория", d.cat || "—"],
+    ["Использование", d.use || "—"],
+    ["Адрес", d.addr || "—"]
+  ];
+  if (d.title) rows.unshift(["Объявление", d.title]);
+  if (d.agent) rows.push(["Сотрудник", d.agent]);
+  if (d.id) rows.push(["Топнлаб ID", d.id]);
+  if (d.kind === "дом") rows.push(["Тип", "дом"]);
+  if (d.cadBuilding) rows.push(["КН здания", d.cadBuilding]);
+  // NSPD map centred on the plot with the "land plots" layer (36048) on, so neighbours are visible.
+  let links = "";
+  const L1 = layers.get(d.cad);
+  if (L1) links = `<a href="${nspdLink(L1.lyr)}" target="_blank" rel="noopener">Соседние участки на НСПД</a>`;
+  // The Avito link is shown even when the ad is gone: it is the trace of where the plot came from.
+  if (d.avito) links += `${links ? " · " : ""}<a href="${esc(d.avito)}" target="_blank" rel="noopener">Авито</a>`;
+  else links += `${links ? " · " : ""}<span style="color:#6b7280">ссылки на Авито нет</span>`;
+  return `<div class="pp"><b>${esc(d.cad)}</b>${d.point ? " <span style=\"color:#b45309\">границы не установлены</span>" : ""}<table>${rows.map(r=>`<tr><td>${r[0]}</td><td>${esc(r[1])}</td></tr>`).join("")}</table><div style="margin-top:6px">${links}</div></div>`;
+}
+
+const layers = new Map();
+for (const d of DATA) {
+  if (!d.g) continue;
+  const lyr = L.geoJSON(d.g, {style:() => theme().ours(colOf(d.sheet)), pointToLayer:(f, ll) => L.circleMarker(ll, theme().point(colOf(d.sheet)))});
+  lyr.bindPopup(() => popup(d), {maxWidth:320});
+  lyr.bindTooltip(`${d.cad}<br>${d.price ? fmt(d.price/1000)+" тыс. ₽" : ""}`, {sticky:true});
+  // A tiny polygon is invisible at district zoom, so each plot also gets a centre marker.
+  const c = lyr.getBounds().getCenter();
+  const m = L.circleMarker(c, theme().marker(colOf(d.sheet)));
+  m.bindPopup(() => popup(d), {maxWidth:320});
+  m.bindTooltip(d.cad);
+  layers.set(d.cad, {d, lyr, m});
+}
+
+const sheets = [...new Set(DATA.map(d=>d.sheet).filter(Boolean))].sort();
+const shSel = document.getElementById("sh");
+for (const s of sheets) shSel.add(new Option(s, s));
+document.getElementById("legend").innerHTML = sheets.filter(s => DATA.filter(d=>d.sheet===s).length >= 5).map(s=>`<span><span class="dot" style="background:${col(s)}"></span>${esc(s)}</span>`).join("");
+
+// Themes: pick from THEMES (files in themes\), remember the choice, restyle everything in place.
+function applyTheme(){
+  const t = theme(); const r = document.documentElement.style;
+  for (const [k, v] of Object.entries(t.vars || {})) r.setProperty("--" + k, v);
+  r.setProperty("--tileFilter", t.tileFilter || "none");
+  themeStyle.textContent = t.css || "";
+  if (t.fontUrl && !document.querySelector(`link[href="${t.fontUrl}"]`)) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = t.fontUrl; document.head.appendChild(l); }
+  neigh.eachLayer(g => g.setStyle && g.setStyle(t.grid));
+  for (const {d, lyr, m} of layers.values()) {
+    const c = colOf(d.sheet);
+    lyr.eachLayer(x => x.setStyle(x instanceof L.CircleMarker ? t.point(c) : t.ours(c)));
+    m.setStyle(t.marker(c));
+  }
+  refreshGL();
+  if (map.hasLayer(gis)) gis.redraw();
+  try { localStorage.setItem("mapTheme", themeKey); } catch (e) {}
+}
+if (Object.keys(THEMES).length > 1) {
+  const ctl = L.control({position:"topleft"});
+  ctl.onAdd = () => { const box = L.DomUtil.create("div"); box.id = "themeBox";
+    box.innerHTML = `Тема: <select id="themeSel">${Object.entries(THEMES).map(([k,v]) => `<option value="${k}"${k===themeKey?" selected":""}>${esc(v.label)}</option>`).join("")}</select>`;
+    L.DomEvent.disableClickPropagation(box); return box; };
+  ctl.addTo(map);
+  document.getElementById("themeSel").addEventListener("change", e => {
+    themeKey = e.target.value; applyTheme(); apply();
+    // A theme may prefer a basemap (the cyberpunk one looks like the game map on the street scheme).
+    const pref = theme().preferBase; const want = pref === "gis" ? gis : pref === "scheme" ? (usingFallback ? gis : scheme) : pref === "hybrid" ? hybrid : null;
+    if (want && !map.hasLayer(want)) { for (const b of Object.values(BASES)) if (map.hasLayer(b)) map.removeLayer(b); want.addTo(map); }
+  });
+}
+
+const list = document.getElementById("list"), stat = document.getElementById("stat");
+function apply(){
+  const q = document.getElementById("q").value.trim().toLowerCase();
+  const sh = shSel.value;
+  const [lo, hi] = (document.getElementById("pr").value || "0-1e12").split("-").map(Number);
+  const shown = [];
+  for (const d of DATA) {
+    const ok = (!sh || d.sheet===sh) && (d.price||0)>=lo && (d.price||0)<hi &&
+      (!q || d.cad.toLowerCase().includes(q) || (d.addr||"").toLowerCase().includes(q));
+    const L1 = layers.get(d.cad);
+    if (L1) { if (ok) { L1.lyr.addTo(map); L1.m.addTo(map); } else { L1.lyr.remove(); L1.m.remove(); } }
+    if (ok) shown.push(d);
+  }
+  const onMap = shown.filter(d=>layers.has(d.cad)).length;
+  stat.textContent = `Показано ${shown.length} из ${DATA.length}, на карте ${onMap}. Данные на ${BUILT}.`;
+  list.innerHTML = shown.map(d => `<li data-c="${esc(d.cad)}" class="${layers.has(d.cad)?"":"nomap"}"><span class="dot" style="background:${colOf(d.sheet)}"></span><span class="c">${esc(d.cad)}</span> · ${d.price?fmt(d.price/1000)+" тыс. ₽":"—"}<div class="s">${esc(d.sheet||"")}${d.vill?" · "+esc(d.vill):""}${d.area?" · "+(d.area/100).toFixed(1).replace(".",",")+" сот.":""}${layers.has(d.cad) ? (d.point ? " · без границ, точка" : "") : (d.bad ? " · номер с ошибкой" : " · нет в НСПД")}</div></li>`).join("");
+  return shown;
+}
+list.addEventListener("click", e => {
+  const li = e.target.closest("li"); if (!li) return;
+  const L1 = layers.get(li.dataset.c); if (!L1) return;
+  map.fitBounds(L1.lyr.getBounds(), {maxZoom:18});
+  L1.lyr.openPopup(L1.lyr.getBounds().getCenter());
+  if (innerWidth <= 760) document.getElementById("side").classList.add("closed");
+});
+for (const id of ["q","sh","pr"]) document.getElementById(id).addEventListener("input", apply);
+document.getElementById("toggle").addEventListener("click", () => document.getElementById("side").classList.toggle("closed"));
+applyTheme();
+apply();
+const all = [...layers.values()].map(x=>x.m.getLatLng());
+if (all.length) map.fitBounds(L.latLngBounds(all), {padding:[30,30]});
+</script>
+</body>
+</html>

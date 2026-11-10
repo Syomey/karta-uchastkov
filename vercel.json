@@ -1,0 +1,7 @@
+{
+  "headers": [
+    { "source": "/data/grid/(.*)", "headers": [ { "key": "Cache-Control", "value": "private, max-age=86400" } ] },
+    { "source": "/data/objects.js", "headers": [ { "key": "Cache-Control", "value": "private, max-age=0, must-revalidate" } ] },
+    { "source": "/(.*)", "headers": [ { "key": "X-Robots-Tag", "value": "noindex, nofollow" } ] }
+  ]
+}
