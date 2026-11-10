@@ -77,8 +77,8 @@ input,select{width:100%;padding:7px 8px;border:1px solid var(--line);border-radi
   </aside>
   <div id="map"></div>
 </div>
-<script src="data/objects.js?v=202611100953"></script>
-<script src="data/grid/index.js?v=202611100953"></script>
+<script src="data/objects.js?v=202611101745"></script>
+<script src="data/grid/index.js?v=202611101745"></script>
 <script>
 const THEMES = {};
 // Theme: обычная. A theme is one object in THEMES; every file in themes\ is inlined by build.ps1.
@@ -376,7 +376,8 @@ function popup(d){
   ];
   if (d.title) rows.unshift(["Объявление", d.title]);
   if (d.agent) rows.push(["Сотрудник", d.agent]);
-  if (d.id) rows.push(["Топнлаб ID", d.id]);
+  // The Topnlab ID opens the object card in the CRM (crm.topnlab.ru/object-card/<id>); it needs a Topnlab login.
+  if (d.id) rows.push(["Топнлаб ID", `<a href="https://crm.topnlab.ru/object-card/${encodeURIComponent(d.id)}" target="_blank" rel="noopener">${esc(d.id)}</a>`, true]);
   if (d.kind === "дом") rows.push(["Тип", "дом"]);
   if (d.cadBuilding) rows.push(["КН здания", d.cadBuilding]);
   // NSPD map centred on the plot with the "land plots" layer (36048) on, so neighbours are visible.
@@ -386,7 +387,7 @@ function popup(d){
   // The Avito link is shown even when the ad is gone: it is the trace of where the plot came from.
   if (d.avito) links += `${links ? " · " : ""}<a href="${esc(d.avito)}" target="_blank" rel="noopener">Авито</a>`;
   else links += `${links ? " · " : ""}<span style="color:#6b7280">ссылки на Авито нет</span>`;
-  return `<div class="pp"><b>${esc(d.cad)}</b>${d.point ? " <span style=\"color:#b45309\">границы не установлены</span>" : ""}<table>${rows.map(r=>`<tr><td>${r[0]}</td><td>${esc(r[1])}</td></tr>`).join("")}</table><div style="margin-top:6px">${links}</div></div>`;
+  return `<div class="pp"><b>${esc(d.cad)}</b>${d.point ? " <span style=\"color:#b45309\">границы не установлены</span>" : ""}<table>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[2] ? r[1] : esc(r[1])}</td></tr>`).join("")}</table><div style="margin-top:6px">${links}</div></div>`;
 }
 
 const layers = new Map();
