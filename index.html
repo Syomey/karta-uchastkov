@@ -70,6 +70,11 @@ input,select{width:100%;padding:7px 8px;border:1px solid var(--line);border-radi
           <option value="5000000-999999999">от 5 млн</option>
         </select>
       </div>
+      <div class="row">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;user-select:none">
+          <input id="clientView" type="checkbox" style="width:auto;margin:0"> Показ клиенту
+        </label>
+      </div>
       <div id="legend"></div>
       <div id="stat"></div>
     </header>
@@ -77,8 +82,8 @@ input,select{width:100%;padding:7px 8px;border:1px solid var(--line);border-radi
   </aside>
   <div id="map"></div>
 </div>
-<script src="data/objects.js?v=202611101745"></script>
-<script src="data/grid/index.js?v=202611101745"></script>
+<script src="data/objects.js?v=202611112021"></script>
+<script src="data/grid/index.js?v=202611112021"></script>
 <script>
 const THEMES = {};
 // Theme: обычная. A theme is one object in THEMES; every file in themes\ is inlined by build.ps1.
@@ -186,7 +191,7 @@ for (const d of DATA) {
   lon /= k; lat /= k; if (lon < 32.4 || lon > 36.7 || lat < 44.3 || lat > 46.3) { d.g = null; d.point = false; d.bad = true; }
 }
 const NEIGH = [];
-const BUILT = "10.11.2026";
+const BUILT = "11.11.2026";
 const COLORS = {"Трудовское":"#e11d48","Перовское":"#2563eb","Мирновское":"#16a34a","Чистенское":"#d97706","Добровское":"#7c3aed"};
 const PALETTE = ["#0891b2","#db2777","#65a30d","#ea580c","#4f46e5","#0d9488","#b45309","#9333ea","#dc2626","#0284c7","#ca8a04","#059669"];
 const col = s => { if (COLORS[s]) return COLORS[s]; let h = 0; for (const ch of String(s||"")) h = (h*31 + ch.charCodeAt(0)) >>> 0; return PALETTE[h % PALETTE.length]; };
@@ -361,11 +366,14 @@ function nPopup(n, lyr){
   return `<div class="pp"><b>${esc(n.cad)}</b> <span style="color:#6b7280">не в нашей базе</span><table>${rows.map(r=>`<tr><td>${r[0]}</td><td>${esc(r[1])}</td></tr>`).join("")}</table><div style="margin-top:6px"><a href="${nspdLink(lyr)}" target="_blank" rel="noopener">Открыть на НСПД</a></div></div>`;
 }
 
+function isClientView(){ return !!(document.getElementById("clientView") && document.getElementById("clientView").checked); }
 function popup(d){
+  const client = isClientView();
+  const priceLabel = (!client && d.avSt === "active") ? "Цена (Авито)" : "Цена";
   const rows = [
-    [d.avSt === "active" ? "Цена (Авито)" : "Цена", d.price ? fmt(d.price)+" ₽" : "—"],
-    ...(d.basePrice && d.basePrice !== d.price ? [["Цена в базе", fmt(d.basePrice)+" ₽"]] : []),
-    ...(d.avSt && d.avSt !== "active" ? [["Объявление", "снято с Авито или недоступно"]] : []),
+    [priceLabel, d.price ? fmt(d.price)+" ₽" : "—"],
+    ...(!client && d.basePrice && d.basePrice !== d.price ? [["Цена в базе", fmt(d.basePrice)+" ₽"]] : []),
+    ...(!client && d.avSt && d.avSt !== "active" ? [["Объявление", "снято с Авито или недоступно"]] : []),
     ["Площадь", d.area ? fmt(d.area)+" м² ("+(d.area/100).toFixed(1).replace(".",",")+" сот.)" : "—"],
     ["Кад. стоимость", d.cost ? fmt(d.cost)+" ₽" : "—"],
     ["Поселение", d.sheet || "—"],
@@ -375,18 +383,19 @@ function popup(d){
     ["Адрес", d.addr || "—"]
   ];
   if (d.title) rows.unshift(["Объявление", d.title]);
-  if (d.agent) rows.push(["Сотрудник", d.agent]);
   // The Topnlab ID opens the object card in the CRM (crm.topnlab.ru/object-card/<id>); it needs a Topnlab login.
-  if (d.id) rows.push(["Топнлаб ID", `<a href="https://crm.topnlab.ru/object-card/${encodeURIComponent(d.id)}" target="_blank" rel="noopener">${esc(d.id)}</a>`, true]);
+  if (!client && d.id) rows.push(["Топнлаб ID", `<a href="https://crm.topnlab.ru/object-card/${encodeURIComponent(d.id)}" target="_blank" rel="noopener">${esc(d.id)}</a>`, true]);
   if (d.kind === "дом") rows.push(["Тип", "дом"]);
   if (d.cadBuilding) rows.push(["КН здания", d.cadBuilding]);
   // NSPD map centred on the plot with the "land plots" layer (36048) on, so neighbours are visible.
   let links = "";
   const L1 = layers.get(d.cad);
   if (L1) links = `<a href="${nspdLink(L1.lyr)}" target="_blank" rel="noopener">Соседние участки на НСПД</a>`;
-  // The Avito link is shown even when the ad is gone: it is the trace of where the plot came from.
-  if (d.avito) links += `${links ? " · " : ""}<a href="${esc(d.avito)}" target="_blank" rel="noopener">Авито</a>`;
-  else links += `${links ? " · " : ""}<span style="color:#6b7280">ссылки на Авито нет</span>`;
+  // Avito is for internal use only; hide it in client view.
+  if (!client) {
+    if (d.avito) links += `${links ? " · " : ""}<a href="${esc(d.avito)}" target="_blank" rel="noopener">Авито</a>`;
+    else links += `${links ? " · " : ""}<span style="color:#6b7280">ссылки на Авито нет</span>`;
+  }
   return `<div class="pp"><b>${esc(d.cad)}</b>${d.point ? " <span style=\"color:#b45309\">границы не установлены</span>" : ""}<table>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[2] ? r[1] : esc(r[1])}</td></tr>`).join("")}</table><div style="margin-top:6px">${links}</div></div>`;
 }
 
@@ -466,6 +475,15 @@ list.addEventListener("click", e => {
   if (innerWidth <= 760) document.getElementById("side").classList.add("closed");
 });
 for (const id of ["q","sh","pr"]) document.getElementById(id).addEventListener("input", apply);
+const clientCb = document.getElementById("clientView");
+try { if (localStorage.getItem("mapClientView") === "1") clientCb.checked = true; } catch (e) {}
+function refreshOpenPopups(){
+  map.eachLayer(l => { if (l.getPopup && l.getPopup() && map.hasLayer(l) && l.isPopupOpen && l.isPopupOpen()) l.openPopup(); });
+}
+clientCb.addEventListener("change", () => {
+  try { localStorage.setItem("mapClientView", clientCb.checked ? "1" : "0"); } catch (e) {}
+  refreshOpenPopups();
+});
 document.getElementById("toggle").addEventListener("click", () => document.getElementById("side").classList.toggle("closed"));
 applyTheme();
 apply();
