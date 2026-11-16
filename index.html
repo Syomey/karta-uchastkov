@@ -106,7 +106,7 @@ input,select{width:100%;padding:7px 8px;border:1px solid var(--line);border-radi
   <header>
     <div>
       <h2 id="editTitle">Редактор объекта</h2>
-      <div class="meta">открыть Ctrl+Y · закрыть Ctrl+N</div>
+      <div class="meta">Ctrl+Y · закрыть Ctrl+N</div>
     </div>
     <button type="button" id="editClose" aria-label="Закрыть редактор">×</button>
   </header>
@@ -124,6 +124,9 @@ input,select{width:100%;padding:7px 8px;border:1px solid var(--line);border-radi
   </form>
   <div id="editFoot">
     <div id="editStatus"></div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin:0 0 8px;cursor:pointer;user-select:none">
+      <input id="editAutoPick" type="checkbox" style="width:auto;margin:0"> Авто: клик по объекту открывает редактор (после пароля)
+    </label>
     <div class="actions">
       <button type="button" class="primary" id="editApply">Применить</button>
       <button type="button" id="editPatch">Скачать patch</button>
@@ -131,8 +134,8 @@ input,select{width:100%;padding:7px 8px;border:1px solid var(--line);border-radi
     </div>
   </div>
 </div>
-<script src="data/objects.js?v=202611161654"></script>
-<script src="data/grid/index.js?v=202611161654"></script>
+<script src="data/objects.js?v=202611161658"></script>
+<script src="data/grid/index.js?v=202611161658"></script>
 <script>
 const THEMES = {};
 // Theme: обычная. A theme is one object in THEMES; every file in themes\ is inlined by build.ps1.
@@ -296,10 +299,24 @@ const themeStyle = document.createElement("style"); document.head.appendChild(th
 const fmt = n => n==null ? "—" : Math.round(n).toLocaleString("ru-RU");
 const esc = s => String(s??"").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const EDIT_UNLOCK_KEY = "mapEditorUnlock";
+const EDIT_AUTO_KEY = "mapEditorAutoPick";
 let editorObj = null;
 let editorOpen = false;
+try {
+  if (sessionStorage.getItem(EDIT_UNLOCK_KEY) === "1" && localStorage.getItem(EDIT_UNLOCK_KEY) !== "1") {
+    localStorage.setItem(EDIT_UNLOCK_KEY, "1");
+  }
+} catch (e) {}
 function editorUnlocked(){
-  try { return sessionStorage.getItem(EDIT_UNLOCK_KEY) === "1"; } catch (e) { return false; }
+  try { return localStorage.getItem(EDIT_UNLOCK_KEY) === "1"; } catch (e) { return false; }
+}
+function editorAutoPick(){
+  if (!editorUnlocked()) return false;
+  try { return localStorage.getItem(EDIT_AUTO_KEY) !== "0"; } catch (e) { return true; }
+}
+function syncEditAutoCheckbox(){
+  const cb = document.getElementById("editAutoPick");
+  if (cb) cb.checked = editorAutoPick();
 }
 function editorAskUnlock(){
   if (editorUnlocked()) return true;
@@ -309,8 +326,24 @@ function editorAskUnlock(){
     alert("Неверный пароль.");
     return false;
   }
-  try { sessionStorage.setItem(EDIT_UNLOCK_KEY, "1"); } catch (e) {}
+  try {
+    localStorage.setItem(EDIT_UNLOCK_KEY, "1");
+    if (localStorage.getItem(EDIT_AUTO_KEY) == null) localStorage.setItem(EDIT_AUTO_KEY, "1");
+    sessionStorage.removeItem(EDIT_UNLOCK_KEY);
+  } catch (e) {}
+  syncEditAutoCheckbox();
   return true;
+}
+function showEditorPanel(){
+  if (!editorObj) return;
+  fillEditorForm(editorObj);
+  const panel = document.getElementById("editPanel");
+  panel.hidden = false;
+  panel.setAttribute("aria-hidden", "false");
+  editorOpen = true;
+  syncEditAutoCheckbox();
+  document.getElementById("editStatus").textContent = "";
+  document.getElementById("edId").focus();
 }
 function pickObject(d){
   if (!d) return;
@@ -322,6 +355,8 @@ function pickObject(d){
     fillEditorForm(d);
     document.getElementById("editStatus").textContent = "";
     document.getElementById("edId").focus();
+  } else if (editorAutoPick()) {
+    showEditorPanel();
   }
 }
 function editPatchFromForm(){
@@ -364,13 +399,8 @@ function openObjectEditor(){
     alert("Сначала кликните объект на карте или в списке.");
     return;
   }
-  fillEditorForm(editorObj);
-  const panel = document.getElementById("editPanel");
-  panel.hidden = false;
-  panel.setAttribute("aria-hidden", "false");
-  editorOpen = true;
-  document.getElementById("editStatus").textContent = "";
-  document.getElementById("edId").focus();
+  try { if (localStorage.getItem(EDIT_AUTO_KEY) == null) localStorage.setItem(EDIT_AUTO_KEY, "1"); } catch (e) {}
+  showEditorPanel();
 }
 function closeObjectEditor(){
   const panel = document.getElementById("editPanel");
@@ -414,7 +444,12 @@ function downloadEditPatch(){
 document.getElementById("editApply").addEventListener("click", applyObjectEditor);
 document.getElementById("editPatch").addEventListener("click", downloadEditPatch);
 document.getElementById("editClose").addEventListener("click", closeObjectEditor);
+document.getElementById("editAutoPick").addEventListener("change", e => {
+  if (!editorUnlocked()) { e.target.checked = false; return; }
+  try { localStorage.setItem(EDIT_AUTO_KEY, e.target.checked ? "1" : "0"); } catch (err) {}
+});
 for (const id of ["edVill", "edSheet"]) document.getElementById(id).addEventListener("input", syncEditorLocationPreview);
+syncEditAutoCheckbox();
 document.addEventListener("keydown", e => {
   if (!e.ctrlKey) return;
   const k = e.key && e.key.toLowerCase();
