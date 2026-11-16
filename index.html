@@ -46,6 +46,21 @@ input,select{width:100%;padding:7px 8px;border:1px solid var(--line);border-radi
 .leaflet-glPane-pane{pointer-events:none}
 #themeBox{background:var(--panel);color:var(--fg);padding:4px 6px;border-radius:6px;font:12px system-ui;box-shadow:0 1px 4px rgba(0,0,0,.3)}
 #themeBox select{width:auto;padding:2px 4px;font-size:12px}
+#list li.sel{background:var(--sel);color:#1d2430}
+#editPanel{position:fixed;top:0;right:0;z-index:2500;width:min(360px,100%);height:100%;display:flex;flex-direction:column;border-left:1px solid var(--line);background:var(--panel);box-shadow:-4px 0 24px rgba(0,0,0,.15)}
+#editPanel[hidden]{display:none !important}
+#editPanel header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
+#editPanel h2{margin:0;font-size:15px}
+#editPanel .meta{color:var(--muted);font-size:11px;margin-top:4px}
+#editPanel form{flex:1;overflow:auto;padding:12px 14px}
+#editPanel label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
+#editPanel label:first-child{margin-top:0}
+#editPanel .cadro{font-family:ui-monospace,Consolas,monospace;font-size:13px}
+#editFoot{padding:10px 14px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+#editFoot .actions{display:flex;flex-wrap:wrap;gap:6px}
+#editPanel button,#editPanel .btn{padding:7px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);font:inherit;cursor:pointer;text-decoration:none;font-size:13px}
+#editPanel button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+#editStatus{flex:1 1 100%;font-size:11px;color:var(--muted);min-height:1.2em}
 @media (max-width:760px){
   #app{flex-direction:column}
   #side{width:100%;flex:0 0 auto;height:auto;max-height:45%;border-right:0;border-bottom:1px solid var(--line)}
@@ -87,8 +102,36 @@ input,select{width:100%;padding:7px 8px;border:1px solid var(--line);border-radi
   </aside>
   <div id="map"></div>
 </div>
-<script src="data/objects.js?v=202611161526"></script>
-<script src="data/grid/index.js?v=202611161526"></script>
+<div id="editPanel" hidden aria-hidden="true" aria-labelledby="editTitle">
+  <header>
+    <div>
+      <h2 id="editTitle">Редактор объекта</h2>
+      <div class="meta">открыть Ctrl+Y · закрыть Ctrl+N</div>
+    </div>
+    <button type="button" id="editClose" aria-label="Закрыть редактор">×</button>
+  </header>
+  <form id="editForm" onsubmit="return false">
+    <label>Кадастровый номер<input id="edCad" class="cadro" type="text" readonly tabindex="-1"></label>
+    <label>Топнлаб id<input id="edId" class="cadro" type="text" inputmode="numeric" autocomplete="off"></label>
+    <label>Цена, ₽<input id="edPrice" type="number" min="0" step="1000"></label>
+    <label>Поселение<input id="edSheet" type="text"></label>
+    <label>Тип (kind)<input id="edKind" type="text" placeholder="участок / дом"></label>
+    <label>Заголовок<input id="edTitle" type="text"></label>
+    <label>Агент<input id="edAgent" type="text"></label>
+    <label>src<input id="edSrc" type="text"></label>
+    <label>Авито URL<input id="edAvito" type="url"></label>
+  </form>
+  <div id="editFoot">
+    <div id="editStatus"></div>
+    <div class="actions">
+      <button type="button" class="primary" id="editApply">Применить</button>
+      <button type="button" id="editPatch">Скачать patch</button>
+      <a class="btn" id="editTopnlab" href="#" target="_blank" rel="noopener" hidden>Карточка CRM</a>
+    </div>
+  </div>
+</div>
+<script src="data/objects.js?v=202611161643"></script>
+<script src="data/grid/index.js?v=202611161643"></script>
 <script>
 const THEMES = {};
 // Theme: обычная. A theme is one object in THEMES; every file in themes\ is inlined by build.ps1.
@@ -210,6 +253,116 @@ function colOf(s){ const t = theme(); return t.colorOf ? t.colorOf(s) : col(s); 
 const themeStyle = document.createElement("style"); document.head.appendChild(themeStyle);
 const fmt = n => n==null ? "—" : Math.round(n).toLocaleString("ru-RU");
 const esc = s => String(s??"").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const EDIT_UNLOCK_KEY = "mapEditorUnlock";
+let editorObj = null;
+let editorOpen = false;
+function editorUnlocked(){
+  try { return sessionStorage.getItem(EDIT_UNLOCK_KEY) === "1"; } catch (e) { return false; }
+}
+function editorAskUnlock(){
+  if (editorUnlocked()) return true;
+  const p = window.prompt("Пароль редактора:");
+  if (p == null) return false;
+  if (p !== "table 4") {
+    alert("Неверный пароль.");
+    return false;
+  }
+  try { sessionStorage.setItem(EDIT_UNLOCK_KEY, "1"); } catch (e) {}
+  return true;
+}
+function pickObject(d){
+  if (!d) return;
+  editorObj = d;
+  document.querySelectorAll("#list li.sel").forEach(li => li.classList.remove("sel"));
+  const li = document.querySelector(`#list li[data-c="${CSS.escape(d.cad)}"]`);
+  if (li) li.classList.add("sel");
+}
+function editPatchFromForm(){
+  const id = document.getElementById("edId").value.trim();
+  const pr = document.getElementById("edPrice").value.trim();
+  return {
+    cad: document.getElementById("edCad").value.trim(),
+    id, price: pr ? Number(pr) : null,
+    sheet: document.getElementById("edSheet").value.trim(),
+    kind: document.getElementById("edKind").value.trim(),
+    title: document.getElementById("edTitle").value.trim(),
+    agent: document.getElementById("edAgent").value.trim(),
+    src: document.getElementById("edSrc").value.trim(),
+    avito: document.getElementById("edAvito").value.trim(),
+    ts: new Date().toISOString()
+  };
+}
+function fillEditorForm(d){
+  document.getElementById("edCad").value = d.cad || "";
+  document.getElementById("edId").value = d.id || "";
+  document.getElementById("edPrice").value = d.price ?? "";
+  document.getElementById("edSheet").value = d.sheet || "";
+  document.getElementById("edKind").value = d.kind || "";
+  document.getElementById("edTitle").value = d.title || "";
+  document.getElementById("edAgent").value = d.agent || "";
+  document.getElementById("edSrc").value = d.src || "";
+  document.getElementById("edAvito").value = d.avito || "";
+  const top = document.getElementById("editTopnlab");
+  if (d.id) { top.hidden = false; top.href = "https://crm.topnlab.ru/object-card/" + encodeURIComponent(d.id); }
+  else { top.hidden = true; top.removeAttribute("href"); }
+}
+function openObjectEditor(){
+  if (!editorAskUnlock()) return;
+  if (!editorObj) {
+    alert("Сначала кликните объект на карте или в списке.");
+    return;
+  }
+  fillEditorForm(editorObj);
+  const panel = document.getElementById("editPanel");
+  panel.hidden = false;
+  panel.setAttribute("aria-hidden", "false");
+  editorOpen = true;
+  document.getElementById("editStatus").textContent = "";
+  document.getElementById("edId").focus();
+}
+function closeObjectEditor(){
+  const panel = document.getElementById("editPanel");
+  panel.hidden = true;
+  panel.setAttribute("aria-hidden", "true");
+  editorOpen = false;
+}
+function applyObjectEditor(){
+  if (!editorUnlocked()) return;
+  if (!editorObj) return;
+  const p = editPatchFromForm();
+  editorObj.id = p.id || undefined;
+  editorObj.price = p.price;
+  editorObj.sheet = p.sheet;
+  editorObj.kind = p.kind || undefined;
+  editorObj.title = p.title;
+  editorObj.agent = p.agent;
+  editorObj.src = p.src;
+  editorObj.avito = p.avito;
+  try { localStorage.setItem("mapEdit:" + p.cad, JSON.stringify(p)); } catch (e) {}
+  apply();
+  refreshOpenPopups();
+  document.getElementById("editStatus").textContent = "Применено в сессии. Скачайте patch для allobjs.";
+}
+function downloadEditPatch(){
+  if (!editorUnlocked()) return;
+  const p = editPatchFromForm();
+  if (!p.cad) return;
+  const blob = new Blob([JSON.stringify(p, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "patch_" + p.cad.replace(/:/g, "-") + ".json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+document.getElementById("editApply").addEventListener("click", applyObjectEditor);
+document.getElementById("editPatch").addEventListener("click", downloadEditPatch);
+document.getElementById("editClose").addEventListener("click", closeObjectEditor);
+document.addEventListener("keydown", e => {
+  if (!e.ctrlKey) return;
+  const k = e.key && e.key.toLowerCase();
+  if (k === "y") { e.preventDefault(); openObjectEditor(); }
+  else if (k === "n") { e.preventDefault(); closeObjectEditor(); }
+});
 const sideEl = document.getElementById("side");
 const toggleBtn = document.getElementById("toggle");
 try { if (localStorage.getItem("mapSideClosed") === "1") sideEl.classList.add("closed"); } catch (e) {}
@@ -418,6 +571,9 @@ for (const d of DATA) {
   const m = L.circleMarker(c, theme().marker(colOf(d.sheet)));
   m.bindPopup(() => popup(d), {maxWidth:320});
   m.bindTooltip(d.cad);
+  const pick = () => pickObject(d);
+  lyr.on("click", pick);
+  m.on("click", pick);
   layers.set(d.cad, {d, lyr, m});
 }
 
@@ -478,6 +634,7 @@ function apply(){
 list.addEventListener("click", e => {
   const li = e.target.closest("li"); if (!li) return;
   const L1 = layers.get(li.dataset.c); if (!L1) return;
+  pickObject(L1.d);
   map.fitBounds(L1.lyr.getBounds(), {maxZoom:18});
   L1.lyr.openPopup(L1.lyr.getBounds().getCenter());
   if (innerWidth <= 760) setSideClosed(true, false);
