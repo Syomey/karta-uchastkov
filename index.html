@@ -138,8 +138,8 @@ input,select{width:100%;padding:7px 8px;border:1px solid var(--line);border-radi
     </div>
   </div>
 </div>
-<script src="data/objects.js?v=202611161811"></script>
-<script src="data/grid/index.js?v=202611161811"></script>
+<script src="data/objects.js?v=202611161822"></script>
+<script src="data/grid/index.js?v=202611161822"></script>
 <script>
 const THEMES = {};
 // Theme: обычная. A theme is one object in THEMES; every file in themes\ is inlined by build.ps1.
@@ -178,11 +178,11 @@ THEMES.kiberpank = {
   // Night-city look on top of any basemap: darken, push towards blue/magenta.
   tileFilter: "brightness(.55) contrast(1.35) saturate(1.6) hue-rotate(185deg)",
   grid: {color:"#ff2a6d", weight:1, opacity:1, fillColor:"#ff2a6d", fillOpacity:.06},
-  ours: () => ({color:"#05d9e8", weight:2, fillColor:"#05d9e8", fillOpacity:.3}),
-  marker: () => ({radius:5, color:"#fcee0a", weight:1, fillColor:"#05d9e8", fillOpacity:1}),
-  point: () => ({radius:7, color:"#fcee0a", weight:2, dashArray:"3 3", fillOpacity:.1}),
-  // All our plots are blue here; settlements still differ in the list legend.
-  colorOf: () => "#05d9e8",
+  ours: c => ({color:c, weight:2, fillColor:c, fillOpacity:.3}),
+  marker: c => ({radius:5, color:"#fcee0a", weight:1, fillColor:c, fillOpacity:1}),
+  point: c => ({radius:7, color:c, fillColor:c, weight:2, dashArray:"3 3", fillOpacity:.1}),
+  // Territory/locality colours remain consistent in both themes.
+  colorOf: null,
   // 2GIS works everywhere (tablets included) and is recoloured below, so the theme switches to it.
   preferBase: "gis",
   // Pixel recolour of 2GIS tiles by colour class: background black, buildings red, main roads cyan,
@@ -248,7 +248,7 @@ for (const d of DATA) {
 }
 const NEIGH = [];
 const BUILT = "16.11.2026";
-const POS_OF = {"Перово":"Перовское","Семидворье":"г.о. Алушта","Генеральское":"г.о. Алушта","Строгановка":"Трудовское","Красновка":"Мазанское","Мирное":"Мирновское","Дружное":"Трудовское","Малореченское":"г.о. Алушта","Айкаван":"Трудовское","Белоглинка":"Мирновское","Чайковское":"Добровское","Фонтаны":"Чистенское","Трудолюбово":"Чистенское","Веселое":"Перовское","Лазаревка":"Трудовское","Изобильное":"г.о. Алушта","Розовый":"г.о. Алушта","Акрополис":"Трудовское","Новозбурьевка":"Чистенское","Каштановое":"Перовское","Молодежное":"Молодежненское","Пионерское":"Добровское","Лаванда":"г.о. Алушта","Нижняя Кутузовка":"г.о. Алушта","Ферсманово":"Добровское","Клёновка":"Донское","Лучистое":"г.о. Алушта","Алушта":"г.о. Алушта","Пушкино":"г.о. Алушта","Константиновка":"Перовское","Лозовое":"Добровское","Краснолесье":"Добровское","Тепловка":"Николаевское","Ивановка":"Трудовское","Мраморное":"Добровское","Перевальное":"Добровское","Нижнее":"г.о. Алушта","Петропавловка":"Добровское","Клиновка":"Перовское","Лазурное":"г.о. Алушта","Чайка":"г.о. Алушта","Нижнее Запрудное":"г.о. Алушта","Чистенькое":"Чистенское","Рыбачье":"г.о. Алушта","Солнечное":"Молодежненское","Солнечногорское":"г.о. Алушта","Урожайное":"Трудовское","Запрудное":"г.о. Алушта","Молочное":"Перовское","Кипарисное":"г.о. Алушта","Мазанка":"Мазанское","Ключи":"Перовское","Утёс":"г.о. Алушта","Левадки":"Чистенское","Винницкое":"Николаевское","Малый Маяк":"г.о. Алушта","Трехпрудное":"Чистенское","Заречное":"Добровское","Доброе":"Добровское","Лавровое":"г.о. Алушта","Партизанское":"Перовское","Трудовое":"Трудовское","Дмитрово":"Донское","Камышинка":"Чистенское","Андрусово":"Добровское","Привольное":"Добровское","Денисовка":"Трудовское","Обрыв":"Перовское","Виноградное":"г.о. Алушта","Верхняя Кутузовка":"г.о. Алушта","Ана-Юрт":"Трудовское","Партенит":"г.о. Алушта","Дубки":"Перовское","Украинка":"Перовское","Николаевка":"Николаевское","Скворцово":"Скворцовское"};
+const POS_OF = {"Дмитрово":"Донское","Молодежное":"Молодежненское","Мраморное":"Добровское","Трудолюбово":"Чистенское","Кипарисное":"г.о. Алушта","Николаевка":"Николаевское","Утёс":"г.о. Алушта","Чайковское":"Добровское","Краснолесье":"Добровское","Дубки":"Перовское","Чайка":"г.о. Алушта","Партенит":"г.о. Алушта","Новозбурьевка":"Чистенское","Алушта":"г.о. Алушта","Партизанское":"Перовское","Мазанка":"Мазанское","Генеральское":"г.о. Алушта","Пионерское":"Добровское","Веселое":"Перовское","Лозовое":"Добровское","Трехпрудное":"Чистенское","Левадки":"Чистенское","Ферсманово":"Добровское","Клиновка":"Перовское","Лазурное":"г.о. Алушта","Скворцово":"Скворцовское","Семидворье":"г.о. Алушта","Денисовка":"Трудовское","Малый Маяк":"г.о. Алушта","Винницкое":"Николаевское","Ключи":"Перовское","Лазаревка":"Трудовское","Петропавловка":"Добровское","Ана-Юрт":"Трудовское","Перевальное":"Добровское","Солнечное":"Молодежненское","Лаванда":"г.о. Алушта","Белоглинка":"Мирновское","Доброе":"Добровское","Привольное":"Добровское","Мирное":"Мирновское","Малореченское":"г.о. Алушта","Андрусово":"Добровское","Урожайное":"Трудовское","Молочное":"Перовское","Виноградное":"г.о. Алушта","Запрудное":"г.о. Алушта","Нижнее Запрудное":"г.о. Алушта","Тепловка":"Николаевское","Камышинка":"Чистенское","Нижняя Кутузовка":"г.о. Алушта","Трудовое":"Трудовское","Пушкино":"г.о. Алушта","Строгановка":"Трудовское","Клёновка":"Донское","Украинка":"Перовское","Нижнее":"г.о. Алушта","Ивановка":"Трудовское","Чистенькое":"Чистенское","Заречное":"Добровское","Рыбачье":"г.о. Алушта","Изобильное":"г.о. Алушта","Лавровое":"г.о. Алушта","Лучистое":"г.о. Алушта","Каштановое":"Перовское","Дружное":"Трудовское","Акрополис":"Трудовское","Айкаван":"Трудовское","Фонтаны":"Чистенское","Обрыв":"Перовское","Красновка":"Мазанское","Перово":"Перовское","Константиновка":"Перовское","Верхняя Кутузовка":"г.о. Алушта","Розовый":"г.о. Алушта","Солнечногорское":"г.о. Алушта"};
 const COLORS = {"Трудовское":"#e11d48","Перовское":"#2563eb","Мирновское":"#16a34a","Чистенское":"#d97706","Добровское":"#7c3aed"};
 const PALETTE = ["#0891b2","#db2777","#65a30d","#ea580c","#4f46e5","#0d9488","#b45309","#9333ea","#dc2626","#0284c7","#ca8a04","#059669"];
 const col = s => { if (COLORS[s]) return COLORS[s]; let h = 0; for (const ch of String(s||"")) h = (h*31 + ch.charCodeAt(0)) >>> 0; return PALETTE[h % PALETTE.length]; };
@@ -260,7 +260,7 @@ const FALLBACK = {grid:{color:"#ef4444",weight:1,fillOpacity:.04}, ours:c=>({col
 function theme(){ return THEMES[themeKey] || FALLBACK; }
 function colOf(s){ const t = theme(); return t.colorOf ? t.colorOf(s) : col(s); }
 // Municipalities on the overview; individual localities when zoomed in.
-const VILLAGE_ZOOM = 12, PLOT_ZOOM = 15;
+const VILLAGE_ZOOM = 12;
 function plotColorKey(d){ return map.getZoom() < VILLAGE_ZOOM ? (d.sheet || "Территория не уточнена") : (d.vill || d.sheet || "Населённый пункт не уточнён"); }
 function territoryName(s){
   if (!s) return "Территория не уточнена";
@@ -274,7 +274,11 @@ function localityName(v){
   if (["Алушта","Симферополь"].includes(v)) return "г. " + v;
   return v;
 }
-function colOfPlot(d){ return colOf(plotColorKey(d)); }
+function colOfPlot(d){
+  const key = plotColorKey(d);
+  if (key === "м.о. Алушта" || key === "г.о. Алушта") return "#14532d";
+  return col(key);
+}
 function normalizeLocFields(o){
   let v = (o.vill || "").trim();
   let s = (o.sheet || "").trim();
@@ -744,37 +748,17 @@ if (Object.keys(THEMES).length > 1) {
   });
 }
 
-const territoryLayer = L.layerGroup().addTo(map);
 function renderTerritories(shown){
-  territoryLayer.clearLayers();
-  const zoom = map.getZoom(), villages = zoom >= VILLAGE_ZOOM;
-  document.getElementById("hierarchyHint").textContent = zoom >= PLOT_ZOOM ? "Отдельные объекты · уменьшите масштаб, чтобы увидеть населённые пункты" : villages ? "Населённые пункты · нажмите на название, чтобы увидеть объекты" : "Муниципальные территории · нажмите на название, чтобы увидеть сёла и пгт";
+  const villages = map.getZoom() >= VILLAGE_ZOOM;
+  document.getElementById("hierarchyHint").textContent = villages ? "Цвет участков — по населённым пунктам" : "Цвет участков — по муниципальным территориям";
   const groups = new Map();
   for (const d of shown){
-    if (!layers.has(d.cad)) continue;
-    const key = JSON.stringify(villages ? [d.sheet || "", d.vill || ""] : [d.sheet || ""]);
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(d);
+    const key = plotColorKey(d);
+    if (!groups.has(key)) groups.set(key, d);
   }
-  if (zoom < PLOT_ZOOM) for (const items of groups.values()){
-    const d = items[0], bounds = L.latLngBounds(items.map(o=>layers.get(o.cad).m.getLatLng()));
-    const name = villages ? localityName(d.vill) : territoryName(d.sheet);
-    const color = colOfPlot(d);
-    const marker = L.marker(bounds.getCenter(), {icon:L.divIcon({className:"territory-icon",iconSize:[0,0],html:
-      '<div class="territory-label" style="--territory-color:'+color+'"><strong>'+esc(name)+'</strong><small>'+items.length+' объектов'+(villages ? ' · '+esc(territoryName(d.sheet)) : '')+'</small></div>'})});
-    marker.on("click", ()=>{
-      shSel.value = d.sheet || "__unknownTerritory"; syncVillages();
-      villageSel.value = villages ? (d.vill || "__unknown") : "";
-      apply();
-      const target = villages ? PLOT_ZOOM : VILLAGE_ZOOM;
-      map.fitBounds(bounds, {padding:[70,70], maxZoom:target, animate:false});
-      if (map.getZoom() < target) map.setZoom(target, {animate:false});
-    });
-    territoryLayer.addLayer(marker);
-  }
-  document.getElementById("legend").innerHTML = [...groups.values()].slice(0,18).map(items=>{
-    const d=items[0]; return '<span><span class="dot" style="background:'+colOfPlot(d)+'"></span>'+esc(villages ? localityName(d.vill) : territoryName(d.sheet))+'</span>';
-  }).join("");
+  document.getElementById("legend").innerHTML = [...groups.values()].slice(0,18).map(d=>
+    '<span><span class="dot" style="background:'+colOfPlot(d)+'"></span>'+esc(villages ? (d.vill ? localityName(d.vill) : territoryName(d.sheet)) : territoryName(d.sheet))+'</span>'
+  ).join("");
 }
 map.on("zoomend", ()=>apply());
 const list = document.getElementById("list"), stat = document.getElementById("stat");
@@ -792,7 +776,7 @@ function apply(){
       const c = colOfPlot(d), t = theme();
       L1.lyr.eachLayer(x => x.setStyle(x instanceof L.CircleMarker ? t.point(c) : t.ours(c)));
       L1.m.setStyle(t.marker(c));
-      if (ok && map.getZoom() >= PLOT_ZOOM) { L1.lyr.addTo(map); L1.m.addTo(map); }
+      if (ok) { L1.lyr.addTo(map); L1.m.addTo(map); }
       else { L1.lyr.remove(); L1.m.remove(); }
     }
     if (ok) shown.push(d);
