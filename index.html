@@ -114,7 +114,8 @@ input,select{width:100%;padding:7px 8px;border:1px solid var(--line);border-radi
     <label>Кадастровый номер<input id="edCad" class="cadro" type="text" readonly tabindex="-1"></label>
     <label>Топнлаб id<input id="edId" class="cadro" type="text" inputmode="numeric" autocomplete="off"></label>
     <label>Цена, ₽<input id="edPrice" type="number" min="0" step="1000"></label>
-    <label>Поселение<input id="edSheet" type="text"></label>
+    <label>Населённый пункт<input id="edVill" type="text" placeholder="например Доброе"></label>
+    <label>Поселение <span id="editColorDot" class="dot" title="цвет на карте"></span><input id="edSheet" type="text" placeholder="например Добровское"></label>
     <label>Тип (kind)<input id="edKind" type="text" placeholder="участок / дом"></label>
     <label>Заголовок<input id="edTitle" type="text"></label>
     <label>Агент<input id="edAgent" type="text"></label>
@@ -130,8 +131,8 @@ input,select{width:100%;padding:7px 8px;border:1px solid var(--line);border-radi
     </div>
   </div>
 </div>
-<script src="data/objects.js?v=202611161643"></script>
-<script src="data/grid/index.js?v=202611161643"></script>
+<script src="data/objects.js?v=202611161654"></script>
+<script src="data/grid/index.js?v=202611161654"></script>
 <script>
 const THEMES = {};
 // Theme: обычная. A theme is one object in THEMES; every file in themes\ is inlined by build.ps1.
@@ -240,6 +241,7 @@ for (const d of DATA) {
 }
 const NEIGH = [];
 const BUILT = "16.11.2026";
+const POS_OF = {"Запрудное":"г.о. Алушта","Семидворье":"г.о. Алушта","Пионерское":"Добровское","Лучистое":"г.о. Алушта","Солнечное":"Молодежненское","Клиновка":"Перовское","Утёс":"г.о. Алушта","Андрусово":"Добровское","Изобильное":"г.о. Алушта","Ивановка":"Трудовское","Краснолесье":"Добровское","Генеральское":"г.о. Алушта","Лазаревка":"Трудовское","Перевальное":"Добровское","Молодежное":"Молодежненское","Строгановка":"Трудовское","Николаевка":"Николаевское","Ана-Юрт":"Трудовское","Ключи":"Перовское","Айкаван":"Трудовское","Украинка":"Перовское","Лавровое":"г.о. Алушта","Урожайное":"Трудовское","Пушкино":"г.о. Алушта","Денисовка":"Трудовское","Лаванда":"г.о. Алушта","Розовый":"г.о. Алушта","Дубки":"Перовское","Чайка":"г.о. Алушта","Перово":"Перовское","Доброе":"Добровское","Нижнее":"г.о. Алушта","Каштановое":"Перовское","Мраморное":"Добровское","Петропавловка":"Добровское","Рыбачье":"г.о. Алушта","Партизанское":"Перовское","Трудовое":"Трудовское","Лозовое":"Добровское","Новозбурьевка":"Чистенское","Трудолюбово":"Чистенское","Фонтаны":"Чистенское","Малый Маяк":"г.о. Алушта","Алушта":"г.о. Алушта","Левадки":"Чистенское","Верхняя Кутузовка":"г.о. Алушта","Малореченское":"г.о. Алушта","Солнечногорское":"г.о. Алушта","Винницкое":"Перевальненское","Лазурное":"г.о. Алушта","Нижняя Кутузовка":"г.о. Алушта","Мирное":"Мирновское","Кипарисное":"г.о. Алушта","Дружное":"Трудовское","Камышинка":"Чистенское","Тепловка":"Перевальненское","Заречное":"Добровское","Скворцово":"Скворцовское","Трехпрудное":"Чистенское","Партенит":"г.о. Алушта","Виноградное":"г.о. Алушта"};
 const COLORS = {"Трудовское":"#e11d48","Перовское":"#2563eb","Мирновское":"#16a34a","Чистенское":"#d97706","Добровское":"#7c3aed"};
 const PALETTE = ["#0891b2","#db2777","#65a30d","#ea580c","#4f46e5","#0d9488","#b45309","#9333ea","#dc2626","#0284c7","#ca8a04","#059669"];
 const col = s => { if (COLORS[s]) return COLORS[s]; let h = 0; for (const ch of String(s||"")) h = (h*31 + ch.charCodeAt(0)) >>> 0; return PALETTE[h % PALETTE.length]; };
@@ -250,6 +252,46 @@ if (!THEMES[themeKey]) themeKey = Object.keys(THEMES)[0];
 const FALLBACK = {grid:{color:"#ef4444",weight:1,fillOpacity:.04}, ours:c=>({color:c,weight:2,fillColor:c,fillOpacity:.35}), marker:c=>({radius:5,color:"#fff",weight:1,fillColor:c,fillOpacity:1}), point:c=>({radius:7,color:c,weight:2,dashArray:"3 3",fillOpacity:.15})};
 function theme(){ return THEMES[themeKey] || FALLBACK; }
 function colOf(s){ const t = theme(); return t.colorOf ? t.colorOf(s) : col(s); }
+// Color follows village name when set; otherwise poselenie (sheet). Village names in settlements.csv get their own hue via PALETTE.
+function plotColorKey(d){
+  const v = (d.vill || "").trim();
+  const s = (d.sheet || "").trim();
+  if (v) return v;
+  if (s && POS_OF[s]) return s;
+  return s;
+}
+function colOfPlot(d){ return colOf(plotColorKey(d)); }
+function normalizeLocFields(o){
+  let v = (o.vill || "").trim();
+  let s = (o.sheet || "").trim();
+  if (!v && s && POS_OF[s]) { v = s; s = POS_OF[v] || s; }
+  else if (v && POS_OF[v]) {
+    if (!s || s === v) s = POS_OF[v];
+  }
+  o.vill = v || undefined;
+  o.sheet = s;
+}
+function restylePlot(d){
+  const L1 = layers.get(d.cad);
+  if (!L1) return;
+  const t = theme();
+  const c = colOfPlot(d);
+  L1.lyr.eachLayer(x => x.setStyle(x instanceof L.CircleMarker ? t.point(c) : t.ours(c)));
+  L1.m.setStyle(t.marker(c));
+}
+function syncEditorLocationPreview(){
+  if (!editorObj) return;
+  editorObj.vill = document.getElementById("edVill").value.trim();
+  editorObj.sheet = document.getElementById("edSheet").value.trim();
+  normalizeLocFields(editorObj);
+  document.getElementById("edVill").value = editorObj.vill || "";
+  document.getElementById("edSheet").value = editorObj.sheet || "";
+  const dot = document.getElementById("editColorDot");
+  dot.style.background = colOfPlot(editorObj);
+  dot.title = plotColorKey(editorObj);
+  restylePlot(editorObj);
+  apply();
+}
 const themeStyle = document.createElement("style"); document.head.appendChild(themeStyle);
 const fmt = n => n==null ? "—" : Math.round(n).toLocaleString("ru-RU");
 const esc = s => String(s??"").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -276,6 +318,11 @@ function pickObject(d){
   document.querySelectorAll("#list li.sel").forEach(li => li.classList.remove("sel"));
   const li = document.querySelector(`#list li[data-c="${CSS.escape(d.cad)}"]`);
   if (li) li.classList.add("sel");
+  if (editorOpen) {
+    fillEditorForm(d);
+    document.getElementById("editStatus").textContent = "";
+    document.getElementById("edId").focus();
+  }
 }
 function editPatchFromForm(){
   const id = document.getElementById("edId").value.trim();
@@ -283,6 +330,7 @@ function editPatchFromForm(){
   return {
     cad: document.getElementById("edCad").value.trim(),
     id, price: pr ? Number(pr) : null,
+    vill: document.getElementById("edVill").value.trim(),
     sheet: document.getElementById("edSheet").value.trim(),
     kind: document.getElementById("edKind").value.trim(),
     title: document.getElementById("edTitle").value.trim(),
@@ -296,8 +344,12 @@ function fillEditorForm(d){
   document.getElementById("edCad").value = d.cad || "";
   document.getElementById("edId").value = d.id || "";
   document.getElementById("edPrice").value = d.price ?? "";
+  document.getElementById("edVill").value = d.vill || "";
   document.getElementById("edSheet").value = d.sheet || "";
   document.getElementById("edKind").value = d.kind || "";
+  const dot = document.getElementById("editColorDot");
+  dot.style.background = colOfPlot(d);
+  dot.title = plotColorKey(d);
   document.getElementById("edTitle").value = d.title || "";
   document.getElementById("edAgent").value = d.agent || "";
   document.getElementById("edSrc").value = d.src || "";
@@ -332,13 +384,18 @@ function applyObjectEditor(){
   const p = editPatchFromForm();
   editorObj.id = p.id || undefined;
   editorObj.price = p.price;
+  editorObj.vill = p.vill || undefined;
   editorObj.sheet = p.sheet;
+  normalizeLocFields(editorObj);
   editorObj.kind = p.kind || undefined;
   editorObj.title = p.title;
   editorObj.agent = p.agent;
   editorObj.src = p.src;
   editorObj.avito = p.avito;
+  p.vill = editorObj.vill || "";
+  p.sheet = editorObj.sheet || "";
   try { localStorage.setItem("mapEdit:" + p.cad, JSON.stringify(p)); } catch (e) {}
+  restylePlot(editorObj);
   apply();
   refreshOpenPopups();
   document.getElementById("editStatus").textContent = "Применено в сессии. Скачайте patch для allobjs.";
@@ -357,6 +414,7 @@ function downloadEditPatch(){
 document.getElementById("editApply").addEventListener("click", applyObjectEditor);
 document.getElementById("editPatch").addEventListener("click", downloadEditPatch);
 document.getElementById("editClose").addEventListener("click", closeObjectEditor);
+for (const id of ["edVill", "edSheet"]) document.getElementById(id).addEventListener("input", syncEditorLocationPreview);
 document.addEventListener("keydown", e => {
   if (!e.ctrlKey) return;
   const k = e.key && e.key.toLowerCase();
@@ -563,12 +621,12 @@ function popup(d){
 const layers = new Map();
 for (const d of DATA) {
   if (!d.g) continue;
-  const lyr = L.geoJSON(d.g, {style:() => theme().ours(colOf(d.sheet)), pointToLayer:(f, ll) => L.circleMarker(ll, theme().point(colOf(d.sheet)))});
+  const lyr = L.geoJSON(d.g, {style:() => theme().ours(colOfPlot(d)), pointToLayer:(f, ll) => L.circleMarker(ll, theme().point(colOfPlot(d)))});
   lyr.bindPopup(() => popup(d), {maxWidth:320});
   lyr.bindTooltip(`${d.cad}<br>${d.price ? fmt(d.price/1000)+" тыс. ₽" : ""}`, {sticky:true});
   // A tiny polygon is invisible at district zoom, so each plot also gets a centre marker.
   const c = lyr.getBounds().getCenter();
-  const m = L.circleMarker(c, theme().marker(colOf(d.sheet)));
+  const m = L.circleMarker(c, theme().marker(colOfPlot(d)));
   m.bindPopup(() => popup(d), {maxWidth:320});
   m.bindTooltip(d.cad);
   const pick = () => pickObject(d);
@@ -591,7 +649,7 @@ function applyTheme(){
   if (t.fontUrl && !document.querySelector(`link[href="${t.fontUrl}"]`)) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = t.fontUrl; document.head.appendChild(l); }
   neigh.eachLayer(g => g.setStyle && g.setStyle(t.grid));
   for (const {d, lyr, m} of layers.values()) {
-    const c = colOf(d.sheet);
+    const c = colOfPlot(d);
     lyr.eachLayer(x => x.setStyle(x instanceof L.CircleMarker ? t.point(c) : t.ours(c)));
     m.setStyle(t.marker(c));
   }
@@ -628,7 +686,7 @@ function apply(){
   }
   const onMap = shown.filter(d=>layers.has(d.cad)).length;
   stat.textContent = `Показано ${shown.length} из ${DATA.length}, на карте ${onMap}. Данные на ${BUILT}.`;
-  list.innerHTML = shown.map(d => `<li data-c="${esc(d.cad)}" class="${layers.has(d.cad)?"":"nomap"}"><span class="dot" style="background:${colOf(d.sheet)}"></span><span class="c">${esc(d.cad)}</span> · ${d.price?fmt(d.price/1000)+" тыс. ₽":"—"}<div class="s">${esc(d.sheet||"")}${d.vill?" · "+esc(d.vill):""}${d.area?" · "+(d.area/100).toFixed(1).replace(".",",")+" сот.":""}${layers.has(d.cad) ? (d.point ? " · без границ, точка" : "") : (d.bad ? " · номер с ошибкой" : " · нет в НСПД")}</div></li>`).join("");
+  list.innerHTML = shown.map(d => `<li data-c="${esc(d.cad)}" class="${layers.has(d.cad)?"":"nomap"}"><span class="dot" style="background:${colOfPlot(d)}"></span><span class="c">${esc(d.cad)}</span> · ${d.price?fmt(d.price/1000)+" тыс. ₽":"—"}<div class="s">${esc(d.sheet||"")}${d.vill?" · "+esc(d.vill):""}${d.area?" · "+(d.area/100).toFixed(1).replace(".",",")+" сот.":""}${layers.has(d.cad) ? (d.point ? " · без границ, точка" : "") : (d.bad ? " · номер с ошибкой" : " · нет в НСПД")}</div></li>`).join("");
   return shown;
 }
 list.addEventListener("click", e => {
