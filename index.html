@@ -33,6 +33,8 @@ input,select{width:100%;padding:7px 8px;border:1px solid var(--line);border-radi
 #list .s{color:var(--muted);font-size:12px}
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
 #map{flex:1;height:100%;position:relative;z-index:1;isolation:isolate}
+.territory-label{background:var(--panel);color:var(--fg);border:2px solid var(--territory-color);border-radius:12px;padding:7px 10px;box-shadow:0 2px 8px #0003;text-align:center;font:12px/1.3 system-ui;min-width:130px;width:max-content;max-width:220px;transform:translate(-50%,-50%);cursor:pointer}
+.territory-label strong{display:block}.territory-label small{color:var(--muted)}
 #legend{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:8px;font-size:12px;color:var(--muted)}
 #toggle{position:fixed;top:50%;left:340px;transform:translateY(-50%);z-index:2000;padding:8px 7px;border:1px solid var(--line);border-left:0;border-radius:0 6px 6px 0;background:var(--panel);color:var(--fg);font:inherit;font-size:12px;line-height:1.15;cursor:pointer;box-shadow:1px 1px 4px rgba(0,0,0,.18);writing-mode:vertical-rl}
 .leaflet-popup-content{font-size:13px;line-height:1.45;margin:10px 12px}
@@ -81,7 +83,7 @@ input,select{width:100%;padding:7px 8px;border:1px solid var(--line);border-radi
       <h1>Участки: Симферопольский р-н и Алушта</h1>
       <input id="q" type="search" placeholder="Кадастровый номер или адрес">
       <div class="row">
-        <select id="sh"><option value="">Все поселения</option></select>
+        <select id="sh"><option value="">Все муниципальные территории</option></select>
         <select id="pr">
           <option value="">Любая цена</option>
           <option value="0-2000000">до 2 млн</option>
@@ -95,6 +97,8 @@ input,select{width:100%;padding:7px 8px;border:1px solid var(--line);border-radi
           <input id="clientView" type="checkbox" style="width:auto;margin:0"> Показ клиенту
         </label>
       </div>
+      <div class="row"><select id="village" aria-label="Населённый пункт"><option value="">Все населённые пункты</option></select></div>
+      <div id="hierarchyHint" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
       <div id="legend"></div>
       <div id="stat"></div>
     </header>
@@ -134,8 +138,8 @@ input,select{width:100%;padding:7px 8px;border:1px solid var(--line);border-radi
     </div>
   </div>
 </div>
-<script src="data/objects.js?v=202611161658"></script>
-<script src="data/grid/index.js?v=202611161658"></script>
+<script src="data/objects.js?v=202611161811"></script>
+<script src="data/grid/index.js?v=202611161811"></script>
 <script>
 const THEMES = {};
 // Theme: обычная. A theme is one object in THEMES; every file in themes\ is inlined by build.ps1.
@@ -244,7 +248,7 @@ for (const d of DATA) {
 }
 const NEIGH = [];
 const BUILT = "16.11.2026";
-const POS_OF = {"Запрудное":"г.о. Алушта","Семидворье":"г.о. Алушта","Пионерское":"Добровское","Лучистое":"г.о. Алушта","Солнечное":"Молодежненское","Клиновка":"Перовское","Утёс":"г.о. Алушта","Андрусово":"Добровское","Изобильное":"г.о. Алушта","Ивановка":"Трудовское","Краснолесье":"Добровское","Генеральское":"г.о. Алушта","Лазаревка":"Трудовское","Перевальное":"Добровское","Молодежное":"Молодежненское","Строгановка":"Трудовское","Николаевка":"Николаевское","Ана-Юрт":"Трудовское","Ключи":"Перовское","Айкаван":"Трудовское","Украинка":"Перовское","Лавровое":"г.о. Алушта","Урожайное":"Трудовское","Пушкино":"г.о. Алушта","Денисовка":"Трудовское","Лаванда":"г.о. Алушта","Розовый":"г.о. Алушта","Дубки":"Перовское","Чайка":"г.о. Алушта","Перово":"Перовское","Доброе":"Добровское","Нижнее":"г.о. Алушта","Каштановое":"Перовское","Мраморное":"Добровское","Петропавловка":"Добровское","Рыбачье":"г.о. Алушта","Партизанское":"Перовское","Трудовое":"Трудовское","Лозовое":"Добровское","Новозбурьевка":"Чистенское","Трудолюбово":"Чистенское","Фонтаны":"Чистенское","Малый Маяк":"г.о. Алушта","Алушта":"г.о. Алушта","Левадки":"Чистенское","Верхняя Кутузовка":"г.о. Алушта","Малореченское":"г.о. Алушта","Солнечногорское":"г.о. Алушта","Винницкое":"Перевальненское","Лазурное":"г.о. Алушта","Нижняя Кутузовка":"г.о. Алушта","Мирное":"Мирновское","Кипарисное":"г.о. Алушта","Дружное":"Трудовское","Камышинка":"Чистенское","Тепловка":"Перевальненское","Заречное":"Добровское","Скворцово":"Скворцовское","Трехпрудное":"Чистенское","Партенит":"г.о. Алушта","Виноградное":"г.о. Алушта"};
+const POS_OF = {"Перово":"Перовское","Семидворье":"г.о. Алушта","Генеральское":"г.о. Алушта","Строгановка":"Трудовское","Красновка":"Мазанское","Мирное":"Мирновское","Дружное":"Трудовское","Малореченское":"г.о. Алушта","Айкаван":"Трудовское","Белоглинка":"Мирновское","Чайковское":"Добровское","Фонтаны":"Чистенское","Трудолюбово":"Чистенское","Веселое":"Перовское","Лазаревка":"Трудовское","Изобильное":"г.о. Алушта","Розовый":"г.о. Алушта","Акрополис":"Трудовское","Новозбурьевка":"Чистенское","Каштановое":"Перовское","Молодежное":"Молодежненское","Пионерское":"Добровское","Лаванда":"г.о. Алушта","Нижняя Кутузовка":"г.о. Алушта","Ферсманово":"Добровское","Клёновка":"Донское","Лучистое":"г.о. Алушта","Алушта":"г.о. Алушта","Пушкино":"г.о. Алушта","Константиновка":"Перовское","Лозовое":"Добровское","Краснолесье":"Добровское","Тепловка":"Николаевское","Ивановка":"Трудовское","Мраморное":"Добровское","Перевальное":"Добровское","Нижнее":"г.о. Алушта","Петропавловка":"Добровское","Клиновка":"Перовское","Лазурное":"г.о. Алушта","Чайка":"г.о. Алушта","Нижнее Запрудное":"г.о. Алушта","Чистенькое":"Чистенское","Рыбачье":"г.о. Алушта","Солнечное":"Молодежненское","Солнечногорское":"г.о. Алушта","Урожайное":"Трудовское","Запрудное":"г.о. Алушта","Молочное":"Перовское","Кипарисное":"г.о. Алушта","Мазанка":"Мазанское","Ключи":"Перовское","Утёс":"г.о. Алушта","Левадки":"Чистенское","Винницкое":"Николаевское","Малый Маяк":"г.о. Алушта","Трехпрудное":"Чистенское","Заречное":"Добровское","Доброе":"Добровское","Лавровое":"г.о. Алушта","Партизанское":"Перовское","Трудовое":"Трудовское","Дмитрово":"Донское","Камышинка":"Чистенское","Андрусово":"Добровское","Привольное":"Добровское","Денисовка":"Трудовское","Обрыв":"Перовское","Виноградное":"г.о. Алушта","Верхняя Кутузовка":"г.о. Алушта","Ана-Юрт":"Трудовское","Партенит":"г.о. Алушта","Дубки":"Перовское","Украинка":"Перовское","Николаевка":"Николаевское","Скворцово":"Скворцовское"};
 const COLORS = {"Трудовское":"#e11d48","Перовское":"#2563eb","Мирновское":"#16a34a","Чистенское":"#d97706","Добровское":"#7c3aed"};
 const PALETTE = ["#0891b2","#db2777","#65a30d","#ea580c","#4f46e5","#0d9488","#b45309","#9333ea","#dc2626","#0284c7","#ca8a04","#059669"];
 const col = s => { if (COLORS[s]) return COLORS[s]; let h = 0; for (const ch of String(s||"")) h = (h*31 + ch.charCodeAt(0)) >>> 0; return PALETTE[h % PALETTE.length]; };
@@ -255,13 +259,20 @@ if (!THEMES[themeKey]) themeKey = Object.keys(THEMES)[0];
 const FALLBACK = {grid:{color:"#ef4444",weight:1,fillOpacity:.04}, ours:c=>({color:c,weight:2,fillColor:c,fillOpacity:.35}), marker:c=>({radius:5,color:"#fff",weight:1,fillColor:c,fillOpacity:1}), point:c=>({radius:7,color:c,weight:2,dashArray:"3 3",fillOpacity:.15})};
 function theme(){ return THEMES[themeKey] || FALLBACK; }
 function colOf(s){ const t = theme(); return t.colorOf ? t.colorOf(s) : col(s); }
-// Color follows village name when set; otherwise poselenie (sheet). Village names in settlements.csv get their own hue via PALETTE.
-function plotColorKey(d){
-  const v = (d.vill || "").trim();
-  const s = (d.sheet || "").trim();
-  if (v) return v;
-  if (s && POS_OF[s]) return s;
-  return s;
+// Municipalities on the overview; individual localities when zoomed in.
+const VILLAGE_ZOOM = 12, PLOT_ZOOM = 15;
+function plotColorKey(d){ return map.getZoom() < VILLAGE_ZOOM ? (d.sheet || "Территория не уточнена") : (d.vill || d.sheet || "Населённый пункт не уточнён"); }
+function territoryName(s){
+  if (!s) return "Территория не уточнена";
+  if (s.startsWith("м.о. ")) return "Муниципальный округ " + s.slice(5);
+  if (s.startsWith("г.о. ")) return "Городской округ " + s.slice(5);
+  return s.endsWith("ское") || s.endsWith("цкое") ? s + " сельское поселение" : s;
+}
+function localityName(v){
+  if (!v) return "Населённый пункт не уточнён";
+  if (["Партенит","Николаевка","Молодежное","Зуя"].includes(v)) return "пгт " + v;
+  if (["Алушта","Симферополь"].includes(v)) return "г. " + v;
+  return v;
 }
 function colOfPlot(d){ return colOf(plotColorKey(d)); }
 function normalizeLocFields(o){
@@ -272,6 +283,7 @@ function normalizeLocFields(o){
     if (!s || s === v) s = POS_OF[v];
   }
   o.vill = v || undefined;
+  if (s === "г.о. Алушта") s = "м.о. Алушта";
   o.sheet = s;
 }
 function restylePlot(d){
@@ -630,7 +642,7 @@ function popup(d){
     ...(!client && d.avSt && d.avSt !== "active" ? [["Объявление", "снято с Авито или недоступно"]] : []),
     ["Площадь", d.area ? fmt(d.area)+" м² ("+(d.area/100).toFixed(1).replace(".",",")+" сот.)" : "—"],
     ["Кад. стоимость", d.cost ? fmt(d.cost)+" ₽" : "—"],
-    ["Поселение", d.sheet || "—"],
+    ["Муниципальная территория", territoryName(d.sheet)],
     ["Населённый пункт", d.vill || "—"],
     ["Категория", d.cat || "—"],
     ["Использование", d.use || "—"],
@@ -672,8 +684,34 @@ for (const d of DATA) {
 
 const sheets = [...new Set(DATA.map(d=>d.sheet).filter(Boolean))].sort();
 const shSel = document.getElementById("sh");
-for (const s of sheets) shSel.add(new Option(s, s));
-document.getElementById("legend").innerHTML = sheets.filter(s => DATA.filter(d=>d.sheet===s).length >= 5).map(s=>`<span><span class="dot" style="background:${col(s)}"></span>${esc(s)}</span>`).join("");
+for (const s of sheets) shSel.add(new Option(territoryName(s), s));
+if (DATA.some(d=>!d.sheet)) shSel.add(new Option("Территория не уточнена", "__unknownTerritory"));
+const villageSel = document.getElementById("village");
+function syncVillages(){
+  const previous = villageSel.value;
+  villageSel.innerHTML = '<option value="">Все населённые пункты</option>';
+  const values = [...new Set(DATA.filter(d => !shSel.value || (d.sheet || "__unknownTerritory") === shSel.value).map(d => d.vill || "__unknown"))].sort((a,b)=>a.localeCompare(b,"ru"));
+  for (const v of values) villageSel.add(new Option(v === "__unknown" ? "Населённый пункт не уточнён" : localityName(v), v));
+  villageSel.value = values.includes(previous) ? previous : "";
+}
+syncVillages();
+shSel.addEventListener("input", syncVillages);
+const overviewControl = L.control({position:"bottomleft"});
+overviewControl.onAdd = () => {
+  const button = L.DomUtil.create("button", "territory-label");
+  button.type = "button";
+  button.textContent = "← Все территории";
+  button.style.cssText = "transform:none;--territory-color:var(--accent)";
+  L.DomEvent.disableClickPropagation(button);
+  L.DomEvent.on(button, "click", () => {
+    shSel.value = ""; villageSel.value = ""; syncVillages();
+    const shown = apply().filter(d=>layers.has(d.cad));
+    if (shown.length) map.fitBounds(L.latLngBounds(shown.map(d=>layers.get(d.cad).m.getLatLng())), {padding:[30,30],maxZoom:VILLAGE_ZOOM-1,animate:false});
+  });
+  return button;
+};
+overviewControl.addTo(map);
+
 
 // Themes: pick from THEMES (files in themes\), remember the choice, restyle everything in place.
 function applyTheme(){
@@ -706,22 +744,63 @@ if (Object.keys(THEMES).length > 1) {
   });
 }
 
+const territoryLayer = L.layerGroup().addTo(map);
+function renderTerritories(shown){
+  territoryLayer.clearLayers();
+  const zoom = map.getZoom(), villages = zoom >= VILLAGE_ZOOM;
+  document.getElementById("hierarchyHint").textContent = zoom >= PLOT_ZOOM ? "Отдельные объекты · уменьшите масштаб, чтобы увидеть населённые пункты" : villages ? "Населённые пункты · нажмите на название, чтобы увидеть объекты" : "Муниципальные территории · нажмите на название, чтобы увидеть сёла и пгт";
+  const groups = new Map();
+  for (const d of shown){
+    if (!layers.has(d.cad)) continue;
+    const key = JSON.stringify(villages ? [d.sheet || "", d.vill || ""] : [d.sheet || ""]);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(d);
+  }
+  if (zoom < PLOT_ZOOM) for (const items of groups.values()){
+    const d = items[0], bounds = L.latLngBounds(items.map(o=>layers.get(o.cad).m.getLatLng()));
+    const name = villages ? localityName(d.vill) : territoryName(d.sheet);
+    const color = colOfPlot(d);
+    const marker = L.marker(bounds.getCenter(), {icon:L.divIcon({className:"territory-icon",iconSize:[0,0],html:
+      '<div class="territory-label" style="--territory-color:'+color+'"><strong>'+esc(name)+'</strong><small>'+items.length+' объектов'+(villages ? ' · '+esc(territoryName(d.sheet)) : '')+'</small></div>'})});
+    marker.on("click", ()=>{
+      shSel.value = d.sheet || "__unknownTerritory"; syncVillages();
+      villageSel.value = villages ? (d.vill || "__unknown") : "";
+      apply();
+      const target = villages ? PLOT_ZOOM : VILLAGE_ZOOM;
+      map.fitBounds(bounds, {padding:[70,70], maxZoom:target, animate:false});
+      if (map.getZoom() < target) map.setZoom(target, {animate:false});
+    });
+    territoryLayer.addLayer(marker);
+  }
+  document.getElementById("legend").innerHTML = [...groups.values()].slice(0,18).map(items=>{
+    const d=items[0]; return '<span><span class="dot" style="background:'+colOfPlot(d)+'"></span>'+esc(villages ? localityName(d.vill) : territoryName(d.sheet))+'</span>';
+  }).join("");
+}
+map.on("zoomend", ()=>apply());
 const list = document.getElementById("list"), stat = document.getElementById("stat");
 function apply(){
   const q = document.getElementById("q").value.trim().toLowerCase();
   const sh = shSel.value;
+  const village = villageSel.value;
   const [lo, hi] = (document.getElementById("pr").value || "0-1e12").split("-").map(Number);
   const shown = [];
   for (const d of DATA) {
-    const ok = (!sh || d.sheet===sh) && (d.price||0)>=lo && (d.price||0)<hi &&
+    const ok = (!sh || (d.sheet || "__unknownTerritory")===sh) && (!village || (d.vill || "__unknown") === village) && (d.price||0)>=lo && (d.price||0)<hi &&
       (!q || d.cad.toLowerCase().includes(q) || (d.addr||"").toLowerCase().includes(q));
     const L1 = layers.get(d.cad);
-    if (L1) { if (ok) { L1.lyr.addTo(map); L1.m.addTo(map); } else { L1.lyr.remove(); L1.m.remove(); } }
+    if (L1) {
+      const c = colOfPlot(d), t = theme();
+      L1.lyr.eachLayer(x => x.setStyle(x instanceof L.CircleMarker ? t.point(c) : t.ours(c)));
+      L1.m.setStyle(t.marker(c));
+      if (ok && map.getZoom() >= PLOT_ZOOM) { L1.lyr.addTo(map); L1.m.addTo(map); }
+      else { L1.lyr.remove(); L1.m.remove(); }
+    }
     if (ok) shown.push(d);
   }
+  renderTerritories(shown);
   const onMap = shown.filter(d=>layers.has(d.cad)).length;
   stat.textContent = `Показано ${shown.length} из ${DATA.length}, на карте ${onMap}. Данные на ${BUILT}.`;
-  list.innerHTML = shown.map(d => `<li data-c="${esc(d.cad)}" class="${layers.has(d.cad)?"":"nomap"}"><span class="dot" style="background:${colOfPlot(d)}"></span><span class="c">${esc(d.cad)}</span> · ${d.price?fmt(d.price/1000)+" тыс. ₽":"—"}<div class="s">${esc(d.sheet||"")}${d.vill?" · "+esc(d.vill):""}${d.area?" · "+(d.area/100).toFixed(1).replace(".",",")+" сот.":""}${layers.has(d.cad) ? (d.point ? " · без границ, точка" : "") : (d.bad ? " · номер с ошибкой" : " · нет в НСПД")}</div></li>`).join("");
+  list.innerHTML = shown.map(d => `<li data-c="${esc(d.cad)}" class="${layers.has(d.cad)?"":"nomap"}"><span class="dot" style="background:${colOfPlot(d)}"></span><span class="c">${esc(d.cad)}</span> · ${d.price?fmt(d.price/1000)+" тыс. ₽":"—"}<div class="s">${esc(territoryName(d.sheet))}${d.vill?" · "+esc(d.vill):""}${d.area?" · "+(d.area/100).toFixed(1).replace(".",",")+" сот.":""}${layers.has(d.cad) ? (d.point ? " · без границ, точка" : "") : (d.bad ? " · номер с ошибкой" : " · нет в НСПД")}</div></li>`).join("");
   return shown;
 }
 list.addEventListener("click", e => {
@@ -732,7 +811,7 @@ list.addEventListener("click", e => {
   L1.lyr.openPopup(L1.lyr.getBounds().getCenter());
   if (innerWidth <= 760) setSideClosed(true, false);
 });
-for (const id of ["q","sh","pr"]) document.getElementById(id).addEventListener("input", apply);
+for (const id of ["q","sh","pr","village"]) document.getElementById(id).addEventListener("input", apply);
 const clientCb = document.getElementById("clientView");
 try { if (localStorage.getItem("mapClientView") === "1") clientCb.checked = true; } catch (e) {}
 function refreshOpenPopups(){
