@@ -152,6 +152,22 @@ button.cadCopy{width:38px;min-width:38px;min-height:36px;padding:4px;border:0;ba
 #baseBackdrop{position:fixed;inset:0;z-index:1999;background:#0004}#baseBackdrop[hidden]{display:none}
 #basePickerButton{min-height:44px;padding:8px 12px}
 @media(max-width:760px){#objectCard{top:auto;right:8px;left:8px;bottom:max(8px,env(safe-area-inset-bottom));width:auto;max-height:72dvh;padding:9px 15px 12px}#basePicker{top:auto;bottom:0;left:0;right:0;width:auto;border-radius:20px 20px 0 0;padding:13px 18px max(18px,env(safe-area-inset-bottom))}.object-actions button.action,.object-actions a{font-size:14px;min-height:42px}#side.closed~#map .leaflet-bottom{bottom:58px}#touchTools{max-width:270px}}
+#list{min-height:min(200px,30dvh);overscroll-behavior:contain;scrollbar-gutter:stable}
+#side header{flex:0 1 auto;min-height:0}
+#selectionBar,#listSummary{flex-shrink:0}
+#listSummary{padding:7px 14px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line)}
+#side.closed #listSummary{display:none}
+.list-filters-button{display:none}
+@media(max-width:760px){
+  #side{height:76dvh}
+  #side:not(.closed)~#map .leaflet-bottom{bottom:calc(76dvh + 8px)}
+  #selectionHelp{display:none}
+  #selectionBar button.action{font-size:14px;min-height:40px;padding:6px 8px}
+  #list{min-height:min(190px,29dvh)}
+  #side.has-selection header{max-height:28dvh}
+  #side.has-selection .list-filters-button{display:block;margin-top:5px;font-size:13px;min-height:36px}
+  #side.has-selection:not(.filters-open) header>:not(h1):not(.list-filters-button){display:none}
+}
 </style>
 </head>
 <body>
@@ -160,6 +176,7 @@ button.cadCopy{width:38px;min-width:38px;min-height:36px;padding:4px;border:0;ba
     <button id="toggle" type="button" aria-controls="side" aria-expanded="true" aria-label="Скрыть список участков">Скрыть</button>
     <header>
       <h1>Участки: Симферопольский р-н и Алушта</h1>
+      <button id="listFiltersToggle" class="action list-filters-button" type="button" aria-expanded="false">Показать фильтры</button>
       <input id="q" type="search" placeholder="Кадастр, адрес или ID Топнлаба" aria-label="Поиск по кадастру, адресу или ID Топнлаба">
       <div class="row">
         <select id="sh"><option value="">Все муниципальные территории</option></select>
@@ -193,7 +210,8 @@ button.cadCopy{width:38px;min-width:38px;min-height:36px;padding:4px;border:0;ba
       <div id="copyStatus" role="status" aria-live="polite"></div>
       <div id="selectionHelp" style="margin-top:5px;color:var(--muted)">Shift + клик — выбрать; Shift + перетаскивание — рамка. Также можно отметить флажки.</div>
     </div>
-    <ul id="list"></ul>
+    <div id="listSummary" role="status"></div>
+    <ul id="list" aria-label="Список объектов"></ul>
   </aside>
   <div id="map"></div>
 </div>
@@ -232,8 +250,8 @@ button.cadCopy{width:38px;min-width:38px;min-height:36px;padding:4px;border:0;ba
   </div>
 </div>
 <dialog id="compareDialog" aria-labelledby="compareTitle"><header><h2 id="compareTitle">Сравнение объектов</h2><button type="button" class="action" id="compareCopy" disabled>Копировать</button><button type="button" class="action" id="closeCompare">Закрыть</button></header><div class="compareScroll"><table><thead><tr><th>Кадастр</th><th>Населённый пункт</th><th>Земля, сот.</th><th>Цена, ₽</th><th>₽/сот.</th><th>Топнлаб</th><th>Действия</th></tr></thead><tbody id="compareBody"></tbody></table></div><div id="compareNote"></div></dialog>
-<script src="data/objects.js?v=202611181335"></script>
-<script src="data/grid/index.js?v=202611181335"></script>
+<script src="data/objects.js?v=202611181340"></script>
+<script src="data/grid/index.js?v=202611181340"></script>
 <script>
 const THEMES = {};
 // Theme: обычная. A theme is one object in THEMES; every file in themes\ is inlined by build.ps1.
@@ -346,7 +364,7 @@ for (const d of DATA) {
 }
 const NEIGH = [];
 const BUILT = "18.11.2026";
-const POS_OF = {"Трудовое":"Трудовское","Кипарисное":"г.о. Алушта","Нижнее Запрудное":"г.о. Алушта","Краснолесье":"Добровское","Алушта":"г.о. Алушта","Винницкое":"Николаевское","Фонтаны":"Чистенское","Николаевка":"Николаевское","Дубки":"Перовское","Мирное":"Мирновское","Клиновка":"Перовское","Лаванда":"г.о. Алушта","Ферсманово":"Добровское","Ивановка":"Трудовское","Генеральское":"г.о. Алушта","Каштановое":"Перовское","Утёс":"г.о. Алушта","Левадки":"Чистенское","Новозбурьевка":"Чистенское","Изобильное":"г.о. Алушта","Трудолюбово":"Чистенское","Ключи":"Перовское","Мазанка":"Мазанское","Розовый":"г.о. Алушта","Лозовое":"Добровское","Чистенькое":"Чистенское","Перово":"Перовское","Лазурное":"г.о. Алушта","Доброе":"Добровское","Нижняя Кутузовка":"г.о. Алушта","Тепловка":"Николаевское","Украинка":"Перовское","Урожайное":"Трудовское","Молочное":"Перовское","Петропавловка":"Добровское","Трехпрудное":"Чистенское","Красновка":"Мазанское","Лавровое":"г.о. Алушта","Рыбачье":"г.о. Алушта","Нижнее":"г.о. Алушта","Скворцово":"Скворцовское","Пионерское":"Добровское","Запрудное":"г.о. Алушта","Партенит":"г.о. Алушта","Заречное":"Добровское","Белоглинка":"Мирновское","Партизанское":"Перовское","Семидворье":"г.о. Алушта","Солнечногорское":"г.о. Алушта","Виноградное":"г.о. Алушта","Обрыв":"Перовское","Акрополис":"Трудовское","Веселое":"Перовское","Мраморное":"Добровское","Ана-Юрт":"Трудовское","Молодежное":"Молодежненское","Камышинка":"Чистенское","Дмитрово":"Донское","Солнечное":"Молодежненское","Строгановка":"Трудовское","Перевальное":"Добровское","Денисовка":"Трудовское","Дружное":"Трудовское","Айкаван":"Трудовское","Малореченское":"г.о. Алушта","Константиновка":"Перовское","Привольное":"Добровское","Андрусово":"Добровское","Клёновка":"Донское","Пушкино":"г.о. Алушта","Лазаревка":"Трудовское","Лучистое":"г.о. Алушта","Малый Маяк":"г.о. Алушта","Чайковское":"Добровское","Верхняя Кутузовка":"г.о. Алушта","Чайка":"г.о. Алушта"};
+const POS_OF = {"Трудовое":"Трудовское","Денисовка":"Трудовское","Лазурное":"г.о. Алушта","Строгановка":"Трудовское","Розовый":"г.о. Алушта","Обрыв":"Перовское","Винницкое":"Николаевское","Камышинка":"Чистенское","Нижнее":"г.о. Алушта","Ферсманово":"Добровское","Урожайное":"Трудовское","Семидворье":"г.о. Алушта","Акрополис":"Трудовское","Каштановое":"Перовское","Пушкино":"г.о. Алушта","Айкаван":"Трудовское","Пионерское":"Добровское","Перевальное":"Добровское","Малый Маяк":"г.о. Алушта","Ана-Юрт":"Трудовское","Петропавловка":"Добровское","Новозбурьевка":"Чистенское","Запрудное":"г.о. Алушта","Дмитрово":"Донское","Андрусово":"Добровское","Лазаревка":"Трудовское","Нижнее Запрудное":"г.о. Алушта","Тепловка":"Николаевское","Трудолюбово":"Чистенское","Лучистое":"г.о. Алушта","Партенит":"г.о. Алушта","Мирное":"Мирновское","Константиновка":"Перовское","Клёновка":"Донское","Краснолесье":"Добровское","Украинка":"Перовское","Алушта":"г.о. Алушта","Верхняя Кутузовка":"г.о. Алушта","Лавровое":"г.о. Алушта","Виноградное":"г.о. Алушта","Утёс":"г.о. Алушта","Клиновка":"Перовское","Перово":"Перовское","Молодежное":"Молодежненское","Малореченское":"г.о. Алушта","Чайка":"г.о. Алушта","Генеральское":"г.о. Алушта","Дубки":"Перовское","Дружное":"Трудовское","Лаванда":"г.о. Алушта","Лозовое":"Добровское","Николаевка":"Николаевское","Изобильное":"г.о. Алушта","Заречное":"Добровское","Молочное":"Перовское","Нижняя Кутузовка":"г.о. Алушта","Красновка":"Мазанское","Трехпрудное":"Чистенское","Солнечное":"Молодежненское","Рыбачье":"г.о. Алушта","Чистенькое":"Чистенское","Мраморное":"Добровское","Доброе":"Добровское","Мазанка":"Мазанское","Чайковское":"Добровское","Кипарисное":"г.о. Алушта","Ключи":"Перовское","Солнечногорское":"г.о. Алушта","Привольное":"Добровское","Скворцово":"Скворцовское","Белоглинка":"Мирновское","Фонтаны":"Чистенское","Веселое":"Перовское","Левадки":"Чистенское","Партизанское":"Перовское","Ивановка":"Трудовское"};
 const COLORS = {"Трудовское":"#e11d48","Перовское":"#2563eb","Мирновское":"#16a34a","Чистенское":"#d97706","Добровское":"#7c3aed"};
 const PALETTE = ["#0891b2","#db2777","#65a30d","#ea580c","#4f46e5","#0d9488","#b45309","#9333ea","#dc2626","#0284c7","#ca8a04","#059669"];
 const col = s => { if (COLORS[s]) return COLORS[s]; let h = 0; for (const ch of String(s||"")) h = (h*31 + ch.charCodeAt(0)) >>> 0; return PALETTE[h % PALETTE.length]; };
@@ -526,6 +544,7 @@ function openPlotPopup(d){
 }
 
 function updateSelectionUI(){
+  document.getElementById("side").classList.toggle("has-selection",selectedCads.size>0);
   const visible=new Set(visibleObjects.map(d=>d.cad));
   const hidden=[...selectedCads].filter(c=>!visible.has(c)).length;
   document.getElementById("selectionCount").textContent="Выбрано: "+selectedCads.size+(hidden?" · скрыто фильтрами: "+hidden:"");
@@ -534,6 +553,7 @@ function updateSelectionUI(){
   document.getElementById("copySelected").disabled=!selectedCads.size;
   document.getElementById("compareCopy").disabled=!selectedCads.size;
   document.getElementById("onlySelected").setAttribute("aria-pressed",String(onlySelected));
+  document.getElementById("listSummary").textContent="Объектов в списке: "+visibleObjects.length+(visibleObjects.length>1?" · прокрутите вниз ↓":"");
   updateTouchTools();
 }
 function renderComparison(){
@@ -1192,6 +1212,7 @@ updateTouchTools();
 document.getElementById("objectCard").addEventListener("click",e=>{if(e.target.closest("[data-card-close]")){document.getElementById("objectCard").hidden=true;return;}if(e.target.closest("[data-card-details]")){objectDetailsExpanded=!objectDetailsExpanded;renderObjectCard(popupObject);}});
 document.addEventListener("click",e=>{const button=e.target.closest("button[data-copy-cad],button[data-copy-id]");if(!button)return;e.preventDefault();e.stopPropagation();copyOneCad(button.dataset.copyId||button.dataset.copyCad,button,button.dataset.copyId?"ID Топнлаба":"кадастр");},true);
 syncToggle();
+document.getElementById("listFiltersToggle").addEventListener("click",e=>{const open=sideEl.classList.toggle("filters-open");e.currentTarget.setAttribute("aria-expanded",String(open));e.currentTarget.textContent=open?"Скрыть фильтры":"Показать фильтры";});
 toggleBtn.addEventListener("click", () => setSideClosed(!sideEl.classList.contains("closed"), true));
 applyTheme();
 apply();
