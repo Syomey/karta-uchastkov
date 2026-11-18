@@ -47,5 +47,5 @@ export default async function handler(req,res){
   const share=s.shares.find(x=>x.id===b.id);if(!share)return res.status(404).end();share.revoked=true;
  }else return res.status(400).json({error:'Неизвестное действие.'});
  s.revision++;await write(s,r.etag);return res.json({revision:s.revision,share:action==='share'?s.shares[0]:undefined});
- }catch(e){console.error('Registry operation failed',e.name);return res.status(e.name==='BlobPreconditionFailedError'?409:503).json({error:e.name==='BlobPreconditionFailedError'?'Данные изменились. Обновите страницу, сохранив локальный патч.':'Хранилище временно недоступно. Локальный патч сохранён.'});}
+ }catch(e){console.error('Registry operation failed',e.name);return res.status(e.constructor.name==='BlobPreconditionFailedError'?409:503).json({error:e.constructor.name==='BlobPreconditionFailedError'?'Данные изменились. Обновите страницу, сохранив локальный патч.':'Хранилище временно недоступно. Локальный патч сохранён.'});}
 }
