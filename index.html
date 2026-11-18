@@ -992,7 +992,7 @@ function popup(d){
     if (d.avito) links += `${links ? " · " : ""}<a href="${esc(d.avito)}" target="_blank" rel="noopener">Авито</a>`;
     else links += `${links ? " · " : ""}<span style="color:#6b7280">ссылки на Авито нет</span>`;
   }
-  return `<div class="pp"><b>${esc(d.cad)}</b><button class="cadCopy" type="button" data-copy-cad="${esc(d.cad)}" aria-label="Копировать кадастровый номер" title="Копировать кадастр">⧉</button>${d.point ? " <span style=\"color:#b45309\">"+(d.geometrySource==="topnlab"?"точка из Топнлаба, границы не загружены":"границы не установлены")+"</span>" : ""}<table>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[2] ? r[1] : esc(r[1])}</td></tr>`).join("")}</table><div style="margin-top:6px">${links}</div></div>`;
+  return `<div class="pp"><b>${esc(d.cad)}</b><button class="cadCopy" type="button" data-copy-cad="${esc(d.cad)}" aria-label="Копировать кадастровый номер" title="Копировать кадастр">⧉</button>${d.point ? " <span style=\"color:#b45309\">"+(d.nspdBoundaryStatus==="no_coordinates"?"НСПД: координаты границ отсутствуют":d.geometrySource==="topnlab"?"точка из Топнлаба, границы не загружены":"границы не установлены")+"</span>" : ""}<table>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[2] ? r[1] : esc(r[1])}</td></tr>`).join("")}</table><div style="margin-top:6px">${links}</div></div>`;
 }
 
 const layers = new Map();
@@ -1113,7 +1113,7 @@ function apply(){
   renderTerritories(shown);
   const onMap = shown.filter(d=>layers.has(d.cad)).length;
   stat.textContent = `Показано ${shown.length} из ${DATA.length}, на карте ${onMap}. Данные на ${BUILT}.`;
-  list.innerHTML = shown.map(d => '<li data-c="'+esc(d.cad)+'" class="'+(layers.has(d.cad)?'':'nomap ')+(selectedCads.has(d.cad)?'picked ':'')+(editorObj===d?'sel':'')+'"><input class="pickCheck" type="checkbox" aria-label="Выбрать '+esc(d.cad)+'" '+(selectedCads.has(d.cad)?'checked':'')+'><span class="dot" style="background:'+colOfPlot(d)+'"></span><span class="c">'+esc(d.cad)+'</span> · '+(positive(d.price)?fmt(d.price/1000)+' тыс. ₽':'—')+'<div class="s">'+esc(territoryName(d.sheet))+(d.vill?' · '+esc(d.vill):'')+' · '+sotText(d)+' сот. · '+unitText(d)+(layers.has(d.cad)?(d.point?' · без границ, точка':''):(d.bad?' · номер с ошибкой':' · нет в НСПД'))+'</div></li>').join('');
+  list.innerHTML = shown.map(d => '<li data-c="'+esc(d.cad)+'" class="'+(layers.has(d.cad)?'':'nomap ')+(selectedCads.has(d.cad)?'picked ':'')+(editorObj===d?'sel':'')+'"><input class="pickCheck" type="checkbox" aria-label="Выбрать '+esc(d.cad)+'" '+(selectedCads.has(d.cad)?'checked':'')+'><span class="dot" style="background:'+colOfPlot(d)+'"></span><span class="c">'+esc(d.cad)+'</span> · '+(positive(d.price)?fmt(d.price/1000)+' тыс. ₽':'—')+'<div class="s">'+esc(territoryName(d.sheet))+(d.vill?' · '+esc(d.vill):'')+' · '+sotText(d)+' сот. · '+unitText(d)+(layers.has(d.cad)?(d.point?(d.nspdBoundaryStatus==='no_coordinates'?' · НСПД: без координат границ':' · без границ, точка'):''):(d.bad?' · номер с ошибкой':' · нет в НСПД'))+'</div></li>').join('');
   updateSelectionUI();
   if (document.getElementById("compareDialog").open) renderComparison();
 
