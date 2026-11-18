@@ -136,6 +136,7 @@ button.action[aria-pressed="true"]{background:var(--accent);color:white}
 .object-price{font-size:24px;font-weight:600;letter-spacing:-.5px;margin-top:3px}
 .object-metrics{font-size:14px;margin-top:3px}
 .object-cad{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.object-cad a{color:var(--accent);text-decoration:underline}
 button.cadCopy{width:38px;min-width:38px;min-height:36px;padding:4px;border:0;background:transparent;color:var(--accent);border-radius:7px;cursor:pointer;font-size:19px}
 .object-actions{display:flex;gap:8px;margin-top:8px}.object-actions>*{flex:1;text-align:center;text-decoration:none}
 .object-detail{border-top:1px solid var(--line);margin-top:10px;padding-top:8px;font-size:13px}.object-detail dl{margin:0}.object-detail dt{color:var(--muted);font-size:12px;margin-top:6px}.object-detail dd{margin:0}
@@ -231,8 +232,8 @@ button.cadCopy{width:38px;min-width:38px;min-height:36px;padding:4px;border:0;ba
   </div>
 </div>
 <dialog id="compareDialog" aria-labelledby="compareTitle"><header><h2 id="compareTitle">Сравнение объектов</h2><button type="button" class="action" id="compareCopy" disabled>Копировать</button><button type="button" class="action" id="closeCompare">Закрыть</button></header><div class="compareScroll"><table><thead><tr><th>Кадастр</th><th>Населённый пункт</th><th>Земля, сот.</th><th>Цена, ₽</th><th>₽/сот.</th><th>Топнлаб</th><th>Действия</th></tr></thead><tbody id="compareBody"></tbody></table></div><div id="compareNote"></div></dialog>
-<script src="data/objects.js?v=202611181330"></script>
-<script src="data/grid/index.js?v=202611181330"></script>
+<script src="data/objects.js?v=202611181335"></script>
+<script src="data/grid/index.js?v=202611181335"></script>
 <script>
 const THEMES = {};
 // Theme: обычная. A theme is one object in THEMES; every file in themes\ is inlined by build.ps1.
@@ -345,7 +346,7 @@ for (const d of DATA) {
 }
 const NEIGH = [];
 const BUILT = "18.11.2026";
-const POS_OF = {"Пионерское":"Добровское","Дубки":"Перовское","Пушкино":"г.о. Алушта","Трудовое":"Трудовское","Солнечногорское":"г.о. Алушта","Малореченское":"г.о. Алушта","Тепловка":"Николаевское","Нижнее":"г.о. Алушта","Краснолесье":"Добровское","Изобильное":"г.о. Алушта","Трехпрудное":"Чистенское","Малый Маяк":"г.о. Алушта","Строгановка":"Трудовское","Украинка":"Перовское","Рыбачье":"г.о. Алушта","Молочное":"Перовское","Айкаван":"Трудовское","Лозовое":"Добровское","Лазурное":"г.о. Алушта","Утёс":"г.о. Алушта","Андрусово":"Добровское","Красновка":"Мазанское","Трудолюбово":"Чистенское","Скворцово":"Скворцовское","Ключи":"Перовское","Семидворье":"г.о. Алушта","Перово":"Перовское","Партенит":"г.о. Алушта","Заречное":"Добровское","Левадки":"Чистенское","Верхняя Кутузовка":"г.о. Алушта","Генеральское":"г.о. Алушта","Мазанка":"Мазанское","Фонтаны":"Чистенское","Веселое":"Перовское","Камышинка":"Чистенское","Кипарисное":"г.о. Алушта","Винницкое":"Николаевское","Николаевка":"Николаевское","Лазаревка":"Трудовское","Акрополис":"Трудовское","Чистенькое":"Чистенское","Нижняя Кутузовка":"г.о. Алушта","Ферсманово":"Добровское","Нижнее Запрудное":"г.о. Алушта","Каштановое":"Перовское","Алушта":"г.о. Алушта","Клёновка":"Донское","Лучистое":"г.о. Алушта","Солнечное":"Молодежненское","Мраморное":"Добровское","Дмитрово":"Донское","Доброе":"Добровское","Лаванда":"г.о. Алушта","Молодежное":"Молодежненское","Денисовка":"Трудовское","Ана-Юрт":"Трудовское","Лавровое":"г.о. Алушта","Привольное":"Добровское","Запрудное":"г.о. Алушта","Белоглинка":"Мирновское","Константиновка":"Перовское","Новозбурьевка":"Чистенское","Партизанское":"Перовское","Перевальное":"Добровское","Обрыв":"Перовское","Клиновка":"Перовское","Розовый":"г.о. Алушта","Чайковское":"Добровское","Дружное":"Трудовское","Виноградное":"г.о. Алушта","Чайка":"г.о. Алушта","Мирное":"Мирновское","Урожайное":"Трудовское","Ивановка":"Трудовское","Петропавловка":"Добровское"};
+const POS_OF = {"Трудовое":"Трудовское","Кипарисное":"г.о. Алушта","Нижнее Запрудное":"г.о. Алушта","Краснолесье":"Добровское","Алушта":"г.о. Алушта","Винницкое":"Николаевское","Фонтаны":"Чистенское","Николаевка":"Николаевское","Дубки":"Перовское","Мирное":"Мирновское","Клиновка":"Перовское","Лаванда":"г.о. Алушта","Ферсманово":"Добровское","Ивановка":"Трудовское","Генеральское":"г.о. Алушта","Каштановое":"Перовское","Утёс":"г.о. Алушта","Левадки":"Чистенское","Новозбурьевка":"Чистенское","Изобильное":"г.о. Алушта","Трудолюбово":"Чистенское","Ключи":"Перовское","Мазанка":"Мазанское","Розовый":"г.о. Алушта","Лозовое":"Добровское","Чистенькое":"Чистенское","Перово":"Перовское","Лазурное":"г.о. Алушта","Доброе":"Добровское","Нижняя Кутузовка":"г.о. Алушта","Тепловка":"Николаевское","Украинка":"Перовское","Урожайное":"Трудовское","Молочное":"Перовское","Петропавловка":"Добровское","Трехпрудное":"Чистенское","Красновка":"Мазанское","Лавровое":"г.о. Алушта","Рыбачье":"г.о. Алушта","Нижнее":"г.о. Алушта","Скворцово":"Скворцовское","Пионерское":"Добровское","Запрудное":"г.о. Алушта","Партенит":"г.о. Алушта","Заречное":"Добровское","Белоглинка":"Мирновское","Партизанское":"Перовское","Семидворье":"г.о. Алушта","Солнечногорское":"г.о. Алушта","Виноградное":"г.о. Алушта","Обрыв":"Перовское","Акрополис":"Трудовское","Веселое":"Перовское","Мраморное":"Добровское","Ана-Юрт":"Трудовское","Молодежное":"Молодежненское","Камышинка":"Чистенское","Дмитрово":"Донское","Солнечное":"Молодежненское","Строгановка":"Трудовское","Перевальное":"Добровское","Денисовка":"Трудовское","Дружное":"Трудовское","Айкаван":"Трудовское","Малореченское":"г.о. Алушта","Константиновка":"Перовское","Привольное":"Добровское","Андрусово":"Добровское","Клёновка":"Донское","Пушкино":"г.о. Алушта","Лазаревка":"Трудовское","Лучистое":"г.о. Алушта","Малый Маяк":"г.о. Алушта","Чайковское":"Добровское","Верхняя Кутузовка":"г.о. Алушта","Чайка":"г.о. Алушта"};
 const COLORS = {"Трудовское":"#e11d48","Перовское":"#2563eb","Мирновское":"#16a34a","Чистенское":"#d97706","Добровское":"#7c3aed"};
 const PALETTE = ["#0891b2","#db2777","#65a30d","#ea580c","#4f46e5","#0d9488","#b45309","#9333ea","#dc2626","#0284c7","#ca8a04","#059669"];
 const col = s => { if (COLORS[s]) return COLORS[s]; let h = 0; for (const ch of String(s||"")) h = (h*31 + ch.charCodeAt(0)) >>> 0; return PALETTE[h % PALETTE.length]; };
@@ -496,16 +497,17 @@ async function copySelectedCads(){
   }else window.prompt("Скопируйте кадастровые номера:",text);
 }
 function compactInterface(){return innerWidth<=760||isTouchDevice();}
-async function copyOneCad(cad,button){
+async function copyOneCad(cad,button,label="кадастр"){
   let copied=false;
   try{if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(cad);copied=true;}}catch(e){}
   if(!copied){const field=document.createElement("textarea");field.value=cad;field.style.cssText="position:fixed;opacity:0;font-size:16px";document.body.appendChild(field);field.focus();field.select();field.setSelectionRange(0,cad.length);try{copied=document.execCommand("copy");}catch(e){}field.remove();button.focus({preventScroll:true});}
-  if(copied){button.textContent="✓";button.setAttribute("aria-label","Кадастр скопирован");setTimeout(()=>{button.textContent="⧉";button.setAttribute("aria-label","Копировать кадастровый номер");},2000);}else window.prompt("Скопируйте кадастр:",cad);
+  if(copied){button.textContent="✓";button.setAttribute("aria-label",label+" скопирован");setTimeout(()=>{button.textContent="⧉";button.setAttribute("aria-label","Копировать "+label);},2000);}else window.prompt("Скопируйте "+label+":",cad);
 }
 function renderObjectCard(d){
   const rows=[["Адрес",d.addr||"—"],["Использование",d.use||"—"],["Категория",d.cat||"—"],["Кад. стоимость",positive(d.cost)?fmt(d.cost)+" ₽":"—"],["Муниципальная территория",territoryName(d.sheet)]];
   const card=document.getElementById("objectCard");
   card.innerHTML='<div class="object-head"><span>'+esc((objectKind(d)||"Объект")+' · '+(d.vill||d.sheet||"Местоположение не уточнено"))+'</span><button class="action" type="button" data-card-close aria-label="Закрыть карточку">×</button></div><div class="object-price">'+(positive(d.price)?fmt(d.price)+" ₽":"Цена не указана")+'</div><div class="object-metrics">'+sotText(d)+' сот. · '+unitText(d)+'</div><div class="object-cad"><span>'+esc(d.cad)+'</span><button class="cadCopy" type="button" data-copy-cad="'+esc(d.cad)+'" aria-label="Копировать кадастровый номер" title="Копировать кадастр">⧉</button></div>'+
+  (d.id?'<div class="object-cad"><span>Топнлаб ID</span><a target="_blank" rel="noopener" href="https://crm.topnlab.ru/object-card/'+encodeURIComponent(d.id)+'">'+esc(d.id)+'</a><button class="cadCopy" type="button" data-copy-id="'+esc(d.id)+'" aria-label="Копировать ID Топнлаба" title="Копировать ID Топнлаба">⧉</button></div>':'')+
   (objectDetailsExpanded?'<div class="object-detail"><dl>'+rows.map(([k,v])=>'<dt>'+esc(k)+'</dt><dd>'+esc(v)+'</dd>').join('')+'</dl>'+(!isClientView()&&d.avito?'<p><a target="_blank" rel="noopener" href="'+esc(d.avito)+'">Авито ↗</a></p>':'')+(layers.has(d.cad)?'<p><a target="_blank" rel="noopener" href="'+nspdLink(layers.get(d.cad).lyr)+'">НСПД ↗</a></p>':'')+'</div>':'')+
   '<div class="object-actions"><button class="action" type="button" data-card-details aria-expanded="'+objectDetailsExpanded+'">'+(objectDetailsExpanded?'Свернуть':'Подробнее')+'</button>'+(d.id?'<a class="action" target="_blank" rel="noopener" href="https://crm.topnlab.ru/object-card/'+encodeURIComponent(d.id)+'">Топнлаб ↗</a>':'')+'</div>';
 }
@@ -893,7 +895,7 @@ function popup(d){
   ];
   if (d.title) rows.unshift(["Объявление", d.title]);
   // The Topnlab ID opens the object card in the CRM (crm.topnlab.ru/object-card/<id>); it needs a Topnlab login.
-  if (d.id) rows.push(["Топнлаб ID", `<a href="https://crm.topnlab.ru/object-card/${encodeURIComponent(d.id)}" target="_blank" rel="noopener">${esc(d.id)}</a>`, true]);
+  if (d.id) rows.push(["Топнлаб ID", `<a href="https://crm.topnlab.ru/object-card/${encodeURIComponent(d.id)}" target="_blank" rel="noopener">${esc(d.id)}</a><button class="cadCopy" type="button" data-copy-id="${esc(d.id)}" aria-label="Копировать ID Топнлаба" title="Копировать ID Топнлаба">⧉</button>`, true]);
   if (d.kind === "дом") rows.push(["Тип", "дом"]);
   if (d.cadBuilding) rows.push(["КН здания", d.cadBuilding]);
   // NSPD map centred on the plot with the "land plots" layer (36048) on, so neighbours are visible.
@@ -1188,7 +1190,7 @@ document.addEventListener("keydown",e=>{
 });
 updateTouchTools();
 document.getElementById("objectCard").addEventListener("click",e=>{if(e.target.closest("[data-card-close]")){document.getElementById("objectCard").hidden=true;return;}if(e.target.closest("[data-card-details]")){objectDetailsExpanded=!objectDetailsExpanded;renderObjectCard(popupObject);}});
-document.addEventListener("click",e=>{const button=e.target.closest("button[data-copy-cad]");if(!button)return;e.preventDefault();e.stopPropagation();copyOneCad(button.dataset.copyCad,button);},true);
+document.addEventListener("click",e=>{const button=e.target.closest("button[data-copy-cad],button[data-copy-id]");if(!button)return;e.preventDefault();e.stopPropagation();copyOneCad(button.dataset.copyId||button.dataset.copyCad,button,button.dataset.copyId?"ID Топнлаба":"кадастр");},true);
 syncToggle();
 toggleBtn.addEventListener("click", () => setSideClosed(!sideEl.classList.contains("closed"), true));
 applyTheme();
