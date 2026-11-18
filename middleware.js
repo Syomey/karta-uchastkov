@@ -5,7 +5,7 @@ export const config = { matcher: "/:path*" };
 
 export default function middleware(request) {
   const url=new URL(request.url);
-  if(url.pathname.startsWith("/assets/leaflet/") || url.pathname==="/share.html" || (url.pathname==="/api/registry" && url.searchParams.get("action")==="view")) return;
+  if(["/assets/share.css","/assets/share.js"].includes(url.pathname) || url.pathname.startsWith("/assets/leaflet/") || url.pathname==="/share.html" || (url.pathname==="/api/registry" && url.searchParams.get("action")==="view")) return;
   const users = (process.env.MAP_USERS || "").split(",").map(s => s.trim()).filter(Boolean);
   const header = request.headers.get("authorization") || "";
   if (users.length && header.startsWith("Basic ")) {
