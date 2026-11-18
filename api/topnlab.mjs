@@ -37,7 +37,7 @@ export default async function handler(req,res){res.setHeader('Cache-Control','pr
   try{response=await apiCall(process.env.TOPNLAB_API_KEY,'get-entities',{type:'realty',id:ids},true);job.failures=0;}catch(e){
    if(!(e.httpStatus===429||e.httpStatus>=500))throw e;
    job.failures=ids.length===1&&e.httpStatus===500?3:(job.failures||0)+1;job.nextApiAt=Date.now()+15000;job.lastError='Топнлаб временно недоступен, повторяем пакет.';
-   if(job.failures>=3){if(ids.length>1){job.batchSize=Math.max(1,Math.floor(ids.length/2));job.failures=0;}else{job.review.push({id:ids[0],reason:'api_error'});job.counts.missingApi++;job.cursor++;job.failures=0;job.batchSize=1;if(job.cursor>=job.ids.length){job.geometryIds=job.candidates.filter(d=>d._needsGeometry).map(d=>d.cad);job.phase=job.geometryIds.length?'geometry':'commit';}}}
+   if(job.failures>=3){if(ids.length>1){job.batchSize=Math.max(1,Math.floor(ids.length/2));job.failures=0;}else{job.review.push({id:ids[0],reason:'api_error'});job.counts.missingApi++;job.cursor++;job.failures=0;job.batchSize=1;job.nextApiAt=Date.now()+6100;if(job.cursor>=job.ids.length){job.geometryIds=job.candidates.filter(d=>d._needsGeometry).map(d=>d.cad);job.phase=job.geometryIds.length?'geometry':'commit';}}}
    job.leaseUntil=0;await saveJob(job,lease);lease=null;return res.json(summary(job));
   }
   const entities=response.data||response;
