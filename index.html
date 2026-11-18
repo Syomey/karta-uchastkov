@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="map-release" content="2026-11-17-territory-colors">
+<meta name="map-release" content="2026-11-18-selection">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Участки на карте</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -74,6 +74,32 @@ input,select{width:100%;padding:7px 8px;border:1px solid var(--line);border-radi
   #side header{padding:10px 16px}
   #list li{padding:8px 16px}
 }
+
+#side header{max-height:58%;overflow:auto;flex-shrink:0}
+#side.closed #selectionBar{display:none}
+.filterLabel{display:block;font-size:12px;color:var(--muted);margin-top:8px}
+.filterLabel .row{margin-top:3px}
+#numericFilters{margin-top:8px}#numericFilters summary{cursor:pointer}
+#filterError{color:#b45309;font-size:12px;min-height:1em}
+#selectionBar{padding:8px 14px;border-bottom:1px solid var(--line);font-size:12px}
+#selectionBar .row{flex-wrap:wrap}
+button.action{padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);font:inherit;cursor:pointer}
+button.action:disabled{opacity:.45;cursor:default}
+button.action[aria-pressed="true"]{background:var(--accent);color:white}
+#list li.picked{box-shadow:inset 4px 0 #f59e0b;background:color-mix(in srgb,var(--panel) 80%,#f59e0b 20%)}
+#list input.pickCheck{width:18px;height:18px;margin:0 7px 0 0;vertical-align:middle;accent-color:#d97706;cursor:pointer}
+.selection-rect{position:absolute;pointer-events:none;z-index:650;border:2px solid #f59e0b;background:#f59e0b25}
+#compareDialog{width:min(1100px,96vw);max-height:88dvh;padding:0;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--fg)}
+#compareDialog::backdrop{background:#0007}
+#compareDialog header{padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+#compareDialog h2{margin:0;font-size:17px}
+.compareScroll{overflow:auto;max-height:65dvh}
+#compareDialog table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:13px}
+#compareDialog td,#compareDialog th{padding:9px 12px;border-bottom:1px solid var(--line);text-align:left}
+#compareDialog th{position:sticky;top:0;background:var(--panel)}
+#compareDialog a{color:var(--accent)}
+#compareNote{padding:10px 16px;font-size:12px;color:var(--muted)}
+@media(max-width:760px){#side{max-height:55%}#side header{max-height:27dvh}#selectionBar{padding:6px 14px}#compareDialog{width:98vw}}
 </style>
 </head>
 <body>
@@ -99,10 +125,21 @@ input,select{width:100%;padding:7px 8px;border:1px solid var(--line);border-radi
         </label>
       </div>
       <div class="row"><select id="village" aria-label="Населённый пункт"><option value="">Все населённые пункты</option></select></div>
+      <details id="numericFilters"><summary>Площадь, цена за сотку и сортировка</summary>
+        <label class="filterLabel">Площадь земли, сот.<span class="row"><input id="areaMin" type="number" min="0" step="any" placeholder="от" aria-label="Площадь от, соток"><input id="areaMax" type="number" min="0" step="any" placeholder="до" aria-label="Площадь до, соток"></span></label>
+        <label class="filterLabel">Цена за сотку, ₽<span class="row"><input id="unitMin" type="number" min="0" step="any" placeholder="от" aria-label="Цена за сотку от"><input id="unitMax" type="number" min="0" step="any" placeholder="до" aria-label="Цена за сотку до"></span></label>
+        <div id="filterError" role="status"></div>
+        <select id="sortOrder" aria-label="Сортировка"><option value="default">Исходный порядок</option><option value="price-asc">Цена: сначала дешевле</option><option value="price-desc">Цена: сначала дороже</option><option value="area-asc">Площадь: по возрастанию</option><option value="area-desc">Площадь: по убыванию</option><option value="unit-asc">Цена за сотку: по возрастанию</option><option value="unit-desc">Цена за сотку: по убыванию</option></select>
+      </details>
       <div id="hierarchyHint" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
       <div id="legend"></div>
       <div id="stat"></div>
     </header>
+    <div id="selectionBar">
+      <div id="selectionCount" role="status" aria-live="polite">Выбрано: 0</div>
+      <div class="row"><button class="action" id="onlySelected" type="button" aria-pressed="false">Только выбранные</button><button class="action" id="compareSelected" type="button" disabled>Сравнить</button><button class="action" id="clearSelected" type="button" disabled>Снять выделение</button></div>
+      <div style="margin-top:5px;color:var(--muted)">Shift + клик — выбрать; Shift + перетаскивание — рамка. Также можно отметить флажки.</div>
+    </div>
     <ul id="list"></ul>
   </aside>
   <div id="map"></div>
@@ -139,8 +176,9 @@ input,select{width:100%;padding:7px 8px;border:1px solid var(--line);border-radi
     </div>
   </div>
 </div>
-<script src="data/objects.js?v=202611171942"></script>
-<script src="data/grid/index.js?v=202611171942"></script>
+<dialog id="compareDialog" aria-labelledby="compareTitle"><header><h2 id="compareTitle">Сравнение объектов</h2><button type="button" class="action" id="closeCompare">Закрыть</button></header><div class="compareScroll"><table><thead><tr><th>Кадастр</th><th>Населённый пункт</th><th>Земля, сот.</th><th>Цена, ₽</th><th>₽/сот.</th><th>Топнлаб</th><th>Действия</th></tr></thead><tbody id="compareBody"></tbody></table></div><div id="compareNote"></div></dialog>
+<script src="data/objects.js?v=202611181206"></script>
+<script src="data/grid/index.js?v=202611181206"></script>
 <script>
 const THEMES = {};
 // Theme: обычная. A theme is one object in THEMES; every file in themes\ is inlined by build.ps1.
@@ -238,6 +276,9 @@ THEMES.kiberpank = {
 
 // Site build: objects come from data/objects.js (window.OBJECTS); single-file build inlines them here.
 const DATA = window.OBJECTS || [];
+const selectedCads = new Set();
+let visibleObjects = [], onlySelected = false, suppressPlotClickUntil = 0;
+let objectPopup = null, popupObject = null;
 // Plots without an NSPD outline arrive with an empty geometry object.
 for (const d of DATA) {
   if (!d.g || !Array.isArray(d.g.coordinates)) { d.g = null; continue; }
@@ -248,8 +289,8 @@ for (const d of DATA) {
   lon /= k; lat /= k; if (lon < 32.4 || lon > 36.7 || lat < 44.3 || lat > 46.3) { d.g = null; d.point = false; d.bad = true; }
 }
 const NEIGH = [];
-const BUILT = "17.11.2026";
-const POS_OF = {"Акрополис":"Трудовское","Пионерское":"Добровское","Нижнее":"г.о. Алушта","Розовый":"г.о. Алушта","Трехпрудное":"Чистенское","Доброе":"Добровское","Алушта":"г.о. Алушта","Партенит":"г.о. Алушта","Скворцово":"Скворцовское","Денисовка":"Трудовское","Малореченское":"г.о. Алушта","Запрудное":"г.о. Алушта","Привольное":"Добровское","Лаванда":"г.о. Алушта","Кипарисное":"г.о. Алушта","Виноградное":"г.о. Алушта","Клёновка":"Донское","Дружное":"Трудовское","Перово":"Перовское","Украинка":"Перовское","Мраморное":"Добровское","Дмитрово":"Донское","Урожайное":"Трудовское","Обрыв":"Перовское","Лазаревка":"Трудовское","Веселое":"Перовское","Ана-Юрт":"Трудовское","Каштановое":"Перовское","Нижняя Кутузовка":"г.о. Алушта","Партизанское":"Перовское","Молодежное":"Молодежненское","Верхняя Кутузовка":"г.о. Алушта","Солнечногорское":"г.о. Алушта","Семидворье":"г.о. Алушта","Краснолесье":"Добровское","Строгановка":"Трудовское","Винницкое":"Николаевское","Лавровое":"г.о. Алушта","Лучистое":"г.о. Алушта","Николаевка":"Николаевское","Заречное":"Добровское","Мазанка":"Мазанское","Нижнее Запрудное":"г.о. Алушта","Рыбачье":"г.о. Алушта","Фонтаны":"Чистенское","Малый Маяк":"г.о. Алушта","Чистенькое":"Чистенское","Андрусово":"Добровское","Перевальное":"Добровское","Трудолюбово":"Чистенское","Клиновка":"Перовское","Новозбурьевка":"Чистенское","Молочное":"Перовское","Ивановка":"Трудовское","Левадки":"Чистенское","Константиновка":"Перовское","Чайковское":"Добровское","Ферсманово":"Добровское","Лазурное":"г.о. Алушта","Лозовое":"Добровское","Пушкино":"г.о. Алушта","Камышинка":"Чистенское","Трудовое":"Трудовское","Мирное":"Мирновское","Петропавловка":"Добровское","Красновка":"Мазанское","Тепловка":"Николаевское","Ключи":"Перовское","Айкаван":"Трудовское","Генеральское":"г.о. Алушта","Изобильное":"г.о. Алушта","Утёс":"г.о. Алушта","Дубки":"Перовское","Чайка":"г.о. Алушта","Белоглинка":"Мирновское","Солнечное":"Молодежненское"};
+const BUILT = "18.11.2026";
+const POS_OF = {"Трудолюбово":"Чистенское","Чайковское":"Добровское","Денисовка":"Трудовское","Семидворье":"г.о. Алушта","Молодежное":"Молодежненское","Верхняя Кутузовка":"г.о. Алушта","Фонтаны":"Чистенское","Пионерское":"Добровское","Винницкое":"Николаевское","Запрудное":"г.о. Алушта","Чайка":"г.о. Алушта","Веселое":"Перовское","Новозбурьевка":"Чистенское","Ферсманово":"Добровское","Ана-Юрт":"Трудовское","Ключи":"Перовское","Кипарисное":"г.о. Алушта","Лозовое":"Добровское","Доброе":"Добровское","Виноградное":"г.о. Алушта","Партизанское":"Перовское","Клиновка":"Перовское","Камышинка":"Чистенское","Перевальное":"Добровское","Нижнее":"г.о. Алушта","Утёс":"г.о. Алушта","Строгановка":"Трудовское","Краснолесье":"Добровское","Мирное":"Мирновское","Красновка":"Мазанское","Алушта":"г.о. Алушта","Трудовое":"Трудовское","Мазанка":"Мазанское","Нижняя Кутузовка":"г.о. Алушта","Лавровое":"г.о. Алушта","Нижнее Запрудное":"г.о. Алушта","Андрусово":"Добровское","Лаванда":"г.о. Алушта","Белоглинка":"Мирновское","Розовый":"г.о. Алушта","Константиновка":"Перовское","Пушкино":"г.о. Алушта","Лазурное":"г.о. Алушта","Скворцово":"Скворцовское","Солнечногорское":"г.о. Алушта","Изобильное":"г.о. Алушта","Молочное":"Перовское","Привольное":"Добровское","Украинка":"Перовское","Малый Маяк":"г.о. Алушта","Дубки":"Перовское","Заречное":"Добровское","Тепловка":"Николаевское","Трехпрудное":"Чистенское","Клёновка":"Донское","Лазаревка":"Трудовское","Каштановое":"Перовское","Левадки":"Чистенское","Малореченское":"г.о. Алушта","Солнечное":"Молодежненское","Мраморное":"Добровское","Лучистое":"г.о. Алушта","Николаевка":"Николаевское","Рыбачье":"г.о. Алушта","Урожайное":"Трудовское","Акрополис":"Трудовское","Перово":"Перовское","Обрыв":"Перовское","Генеральское":"г.о. Алушта","Чистенькое":"Чистенское","Дружное":"Трудовское","Партенит":"г.о. Алушта","Петропавловка":"Добровское","Айкаван":"Трудовское","Дмитрово":"Донское","Ивановка":"Трудовское"};
 const COLORS = {"Трудовское":"#e11d48","Перовское":"#2563eb","Мирновское":"#16a34a","Чистенское":"#d97706","Добровское":"#7c3aed"};
 const PALETTE = ["#0891b2","#db2777","#65a30d","#ea580c","#4f46e5","#0d9488","#b45309","#9333ea","#dc2626","#0284c7","#ca8a04","#059669"];
 const col = s => { if (COLORS[s]) return COLORS[s]; let h = 0; for (const ch of String(s||"")) h = (h*31 + ch.charCodeAt(0)) >>> 0; return PALETTE[h % PALETTE.length]; };
@@ -296,8 +337,7 @@ function restylePlot(d){
   if (!L1) return;
   const t = theme();
   const c = colOfPlot(d);
-  L1.lyr.eachLayer(x => x.setStyle(x instanceof L.CircleMarker ? t.point(c) : t.ours(c)));
-  L1.m.setStyle(t.marker(c));
+  stylePlot(L1);
 }
 function syncEditorLocationPreview(){
   if (!editorObj) return;
@@ -315,6 +355,90 @@ function syncEditorLocationPreview(){
 const themeStyle = document.createElement("style"); document.head.appendChild(themeStyle);
 const fmt = n => n==null ? "—" : Math.round(n).toLocaleString("ru-RU");
 const esc = s => String(s??"").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+// Selection/filter helpers: shared by list, map, popups and comparison.
+function positive(value){
+  if (value == null || typeof value === "object" || typeof value === "boolean" || value === "") return null;
+  const n = Number(value); return Number.isFinite(n) && n > 0 ? n : null;
+}
+function objectKind(d){
+  const kind = String(d.kind || "").trim().toLowerCase();
+  if (kind) return kind;
+  const url = String(d.avito || "").toLowerCase();
+  if (url.includes("/zemelnye_uchastki/")) return "участок";
+  if (url.includes("/doma_dachi_kottedzhi/")) return "дом";
+  if (url.includes("/kvartiry/") || url.includes("/komnaty/")) return "квартира";
+  if (url.includes("/kommercheskaya_nedvizhimost/")) return "коммерция";
+  const title = String(d.title || "").trim().toLowerCase();
+  if (/^участок(?:\s|,|$)/u.test(title)) return "участок";
+  if (/^(дом|дача|коттедж)(\s|,|$)/u.test(title)) return "дом";
+  if (/квартир|апартамент|студия|планировка/u.test(title)) return "квартира";
+  return "";
+}
+function areaSot(d){
+  const kind = objectKind(d);
+  if (["квартира","апартаменты","комната"].includes(kind)) return null;
+  const area = positive(d.area); return area == null ? null : area / 100;
+}
+function pricePerSot(d){
+  if (objectKind(d) !== "участок") return null;
+  const price=positive(d.price), area=areaSot(d);
+  return price == null || area == null ? null : price / area;
+}
+function sotText(d){ const n=areaSot(d); return n == null ? "—" : n.toLocaleString("ru-RU",{maximumFractionDigits:2}); }
+function unitText(d){ const n=pricePerSot(d); return n == null ? "—" : fmt(n)+" ₽/сот."; }
+function inRange(value, range){ return !range.active || (value != null && value >= range.min && value <= range.max); }
+function passesNumeric(d, area, unit){ return inRange(areaSot(d),area) && inRange(pricePerSot(d),unit); }
+function parseRange(minText,maxText){
+  const min = minText === "" ? 0 : Number(minText), max = maxText === "" ? Infinity : Number(maxText);
+  return {min,max,active:minText!==""||maxText!=="",valid:Number.isFinite(min)&&min>=0&&(max===Infinity||Number.isFinite(max))&&max>=min};
+}
+function readNumericRanges(){
+  const read = id => document.getElementById(id).value.trim();
+  const area=parseRange(read("areaMin"),read("areaMax")), unit=parseRange(read("unitMin"),read("unitMax"));
+  const inputs=["areaMin","areaMax","unitMin","unitMax"];
+  const valid = area.valid && unit.valid && inputs.every(id=>document.getElementById(id).validity.valid);
+  document.getElementById("filterError").textContent = valid ? "" : "Укажите неотрицательные числа; «от» не должно быть больше «до».";
+  return {area,unit,valid};
+}
+function sortObjects(items,order){
+  if(order==="default") return items;
+  const [key,direction]=order.split("-");
+  const value=d=>key==="area"?areaSot(d):key==="unit"?pricePerSot(d):positive(d.price);
+  return items.sort((a,b)=>{const av=value(a),bv=value(b);if(av==null)return bv==null?0:1;if(bv==null)return -1;return (av-bv)*(direction==="desc"?-1:1);});
+}
+function addSelectionInBounds(items, bounds, pointOf){
+  for (const d of items){const point=pointOf(d);if(point && bounds.contains(point)) selectedCads.add(d.cad);}
+}
+function stylePlot({d,lyr,m}){
+  const t=theme(),c=colOfPlot(d),picked=selectedCads.has(d.cad);
+  lyr.eachLayer(x=>x.setStyle({...((x instanceof L.CircleMarker)?t.point(c):t.ours(c)),...(picked?{color:"#f59e0b",weight:4,opacity:1}:{})}));
+  m.setStyle({...t.marker(c),...(picked?{radius:8,color:"#f59e0b",weight:3,fillColor:c}:{})});
+}
+function toggleSelected(cad){
+  if(selectedCads.has(cad))selectedCads.delete(cad);else selectedCads.add(cad);
+  apply();
+}
+function openPlotPopup(d){
+  const entry=layers.get(d.cad); if(!entry)return;
+  popupObject=d;
+  if(!objectPopup)objectPopup=L.popup({maxWidth:340});
+  objectPopup.setLatLng(entry.lyr.getBounds().getCenter()).setContent(popup(d)).openOn(map);
+}
+function updateSelectionUI(){
+  const visible=new Set(visibleObjects.map(d=>d.cad));
+  const hidden=[...selectedCads].filter(c=>!visible.has(c)).length;
+  document.getElementById("selectionCount").textContent="Выбрано: "+selectedCads.size+(hidden?" · скрыто фильтрами: "+hidden:"");
+  document.getElementById("clearSelected").disabled=!selectedCads.size;
+  document.getElementById("compareSelected").disabled=selectedCads.size<2;
+  document.getElementById("onlySelected").setAttribute("aria-pressed",String(onlySelected));
+}
+function renderComparison(){
+  const rows=sortObjects(DATA.filter(d=>selectedCads.has(d.cad)),document.getElementById("sortOrder").value);
+  document.getElementById("compareTitle").textContent="Сравнение объектов: "+rows.length;
+  document.getElementById("compareBody").innerHTML=rows.map(d=>'<tr><td>'+esc(d.cad)+'</td><td>'+esc(d.vill||"—")+'</td><td>'+sotText(d)+'</td><td>'+(positive(d.price)?fmt(d.price):"—")+'</td><td>'+(pricePerSot(d)==null?"—":fmt(pricePerSot(d)))+'</td><td>'+(d.id?'<a target="_blank" rel="noopener" href="https://crm.topnlab.ru/object-card/'+encodeURIComponent(d.id)+'">'+esc(d.id)+'</a>':"—")+'</td><td><button class="action" data-show="'+esc(d.cad)+'" '+(layers.has(d.cad)?'':'disabled')+'>На карте</button> <button class="action" data-remove="'+esc(d.cad)+'">Убрать</button></td></tr>').join("");
+  document.getElementById("compareNote").textContent="Все выбранные объекты, включая скрытые фильтрами. Цена за сотку рассчитывается только для участков; «—» означает, что расчёт неприменим или данных недостаточно.";
+}
+
 const EDIT_UNLOCK_KEY = "mapEditorUnlock";
 const EDIT_AUTO_KEY = "mapEditorAutoPick";
 let editorObj = null;
@@ -477,7 +601,7 @@ const sideEl = document.getElementById("side");
 const toggleBtn = document.getElementById("toggle");
 try { if (localStorage.getItem("mapSideClosed") === "1") sideEl.classList.add("closed"); } catch (e) {}
 
-const map = L.map("map", {preferCanvas:true}).setView([44.95, 34.1], 10);
+const map = L.map("map", {preferCanvas:true, boxZoom:false}).setView([44.95, 34.1], 10);
 // Basemaps. Streets come from OpenFreeMap vector tiles (OpenStreetMap data, Russian names, free incl. commercial use).
 // The vector map is drawn in its own pane above the satellite and below our plots; themes recolour it.
 map.createPane("glPane"); map.getPane("glPane").style.zIndex = 350;
@@ -645,7 +769,8 @@ function popup(d){
     [priceLabel, d.price ? fmt(d.price)+" ₽" : "—"],
     ...(!client && d.basePrice && d.basePrice !== d.price ? [["Цена в базе", fmt(d.basePrice)+" ₽"]] : []),
     ...(!client && d.avSt && d.avSt !== "active" ? [["Объявление", "снято с Авито или недоступно"]] : []),
-    ["Площадь", d.area ? fmt(d.area)+" м² ("+(d.area/100).toFixed(1).replace(".",",")+" сот.)" : "—"],
+    ["Площадь земли", areaSot(d) == null ? "—" : fmt(Number(d.area))+" м² ("+sotText(d)+" сот.)"],
+    ["Цена за сотку", unitText(d)],
     ["Кад. стоимость", d.cost ? fmt(d.cost)+" ₽" : "—"],
     ["Муниципальная территория", territoryName(d.sheet)],
     ["Населённый пункт", d.vill || "—"],
@@ -674,14 +799,18 @@ const layers = new Map();
 for (const d of DATA) {
   if (!d.g) continue;
   const lyr = L.geoJSON(d.g, {style:() => theme().ours(colOfPlot(d)), pointToLayer:(f, ll) => L.circleMarker(ll, theme().point(colOfPlot(d)))});
-  lyr.bindPopup(() => popup(d), {maxWidth:320});
+
   lyr.bindTooltip(`${d.cad}<br>${d.price ? fmt(d.price/1000)+" тыс. ₽" : ""}`, {sticky:true});
   // A tiny polygon is invisible at district zoom, so each plot also gets a centre marker.
   const c = lyr.getBounds().getCenter();
   const m = L.circleMarker(c, theme().marker(colOfPlot(d)));
-  m.bindPopup(() => popup(d), {maxWidth:320});
+
   m.bindTooltip(d.cad);
-  const pick = () => pickObject(d);
+  const pick = e => {
+    if (Date.now() < suppressPlotClickUntil) return;
+    if (e.originalEvent && e.originalEvent.shiftKey) { toggleSelected(d.cad); return; }
+    pickObject(d); openPlotPopup(d);
+  };
   lyr.on("click", pick);
   m.on("click", pick);
   layers.set(d.cad, {d, lyr, m});
@@ -727,9 +856,7 @@ function applyTheme(){
   if (t.fontUrl && !document.querySelector(`link[href="${t.fontUrl}"]`)) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = t.fontUrl; document.head.appendChild(l); }
   neigh.eachLayer(g => g.setStyle && g.setStyle(t.grid));
   for (const {d, lyr, m} of layers.values()) {
-    const c = colOfPlot(d);
-    lyr.eachLayer(x => x.setStyle(x instanceof L.CircleMarker ? t.point(c) : t.ours(c)));
-    m.setStyle(t.marker(c));
+    stylePlot({d,lyr,m});
   }
   refreshGL();
   if (map.hasLayer(gis)) gis.redraw();
@@ -768,38 +895,44 @@ function apply(){
   const sh = shSel.value;
   const village = villageSel.value;
   const [lo, hi] = (document.getElementById("pr").value || "0-1e12").split("-").map(Number);
+  const ranges = readNumericRanges();
   const shown = [];
   for (const d of DATA) {
-    const ok = (!sh || (d.sheet || "__unknownTerritory")===sh) && (!village || (d.vill || "__unknown") === village) && (d.price||0)>=lo && (d.price||0)<hi &&
+    const ok = ranges.valid && passesNumeric(d, ranges.area, ranges.unit) && (!onlySelected || selectedCads.has(d.cad)) && (!sh || (d.sheet || "__unknownTerritory")===sh) && (!village || (d.vill || "__unknown") === village) && (d.price||0)>=lo && (d.price||0)<hi &&
       (!q || d.cad.toLowerCase().includes(q) || (d.addr||"").toLowerCase().includes(q));
     const L1 = layers.get(d.cad);
     if (L1) {
-      const c = colOfPlot(d), t = theme();
-      L1.lyr.eachLayer(x => x.setStyle(x instanceof L.CircleMarker ? t.point(c) : t.ours(c)));
-      L1.m.setStyle(t.marker(c));
+      stylePlot(L1);
       if (ok) { L1.lyr.addTo(map); L1.m.addTo(map); }
       else { L1.lyr.remove(); L1.m.remove(); }
     }
     if (ok) shown.push(d);
   }
+  sortObjects(shown, document.getElementById("sortOrder").value);
+  visibleObjects = shown;
   renderTerritories(shown);
   const onMap = shown.filter(d=>layers.has(d.cad)).length;
   stat.textContent = `Показано ${shown.length} из ${DATA.length}, на карте ${onMap}. Данные на ${BUILT}.`;
-  list.innerHTML = shown.map(d => `<li data-c="${esc(d.cad)}" class="${layers.has(d.cad)?"":"nomap"}"><span class="dot" style="background:${colOfPlot(d)}"></span><span class="c">${esc(d.cad)}</span> · ${d.price?fmt(d.price/1000)+" тыс. ₽":"—"}<div class="s">${esc(territoryName(d.sheet))}${d.vill?" · "+esc(d.vill):""}${d.area?" · "+(d.area/100).toFixed(1).replace(".",",")+" сот.":""}${layers.has(d.cad) ? (d.point ? " · без границ, точка" : "") : (d.bad ? " · номер с ошибкой" : " · нет в НСПД")}</div></li>`).join("");
+  list.innerHTML = shown.map(d => '<li data-c="'+esc(d.cad)+'" class="'+(layers.has(d.cad)?'':'nomap ')+(selectedCads.has(d.cad)?'picked ':'')+(editorObj===d?'sel':'')+'"><input class="pickCheck" type="checkbox" aria-label="Выбрать '+esc(d.cad)+'" '+(selectedCads.has(d.cad)?'checked':'')+'><span class="dot" style="background:'+colOfPlot(d)+'"></span><span class="c">'+esc(d.cad)+'</span> · '+(positive(d.price)?fmt(d.price/1000)+' тыс. ₽':'—')+'<div class="s">'+esc(territoryName(d.sheet))+(d.vill?' · '+esc(d.vill):'')+' · '+sotText(d)+' сот. · '+unitText(d)+(layers.has(d.cad)?(d.point?' · без границ, точка':''):(d.bad?' · номер с ошибкой':' · нет в НСПД'))+'</div></li>').join('');
+  updateSelectionUI();
+  if (document.getElementById("compareDialog").open) renderComparison();
+
   return shown;
 }
 list.addEventListener("click", e => {
   const li = e.target.closest("li"); if (!li) return;
+  if (e.shiftKey || e.target.matches("input.pickCheck")) { e.preventDefault(); toggleSelected(li.dataset.c); return; }
   const L1 = layers.get(li.dataset.c); if (!L1) return;
   pickObject(L1.d);
   map.fitBounds(L1.lyr.getBounds(), {maxZoom:18});
-  L1.lyr.openPopup(L1.lyr.getBounds().getCenter());
+  openPlotPopup(L1.d);
   if (innerWidth <= 760) setSideClosed(true, false);
 });
-for (const id of ["q","sh","pr","village"]) document.getElementById(id).addEventListener("input", apply);
+for (const id of ["q","sh","pr","village","areaMin","areaMax","unitMin","unitMax","sortOrder"]) document.getElementById(id).addEventListener("input", apply);
 const clientCb = document.getElementById("clientView");
 try { if (localStorage.getItem("mapClientView") === "1") clientCb.checked = true; } catch (e) {}
 function refreshOpenPopups(){
+  if (objectPopup && objectPopup.isOpen() && popupObject) objectPopup.setContent(popup(popupObject));
   map.eachLayer(l => { if (l.getPopup && l.getPopup() && map.hasLayer(l) && l.isPopupOpen && l.isPopupOpen()) l.openPopup(); });
 }
 clientCb.addEventListener("change", () => {
@@ -818,6 +951,69 @@ function setSideClosed(closed, persist){
   if (persist) { try { localStorage.setItem("mapSideClosed", closed ? "1" : "0"); } catch (e) {} }
   map.invalidateSize();
 }
+document.getElementById("onlySelected").addEventListener("click",()=>{onlySelected=!onlySelected;apply();});
+document.getElementById("clearSelected").addEventListener("click",()=>{selectedCads.clear();onlySelected=false;apply();});
+document.getElementById("compareSelected").addEventListener("click",()=>{renderComparison();document.getElementById("compareDialog").showModal();});
+document.getElementById("closeCompare").addEventListener("click",()=>document.getElementById("compareDialog").close());
+document.getElementById("compareBody").addEventListener("click",e=>{
+  const remove=e.target.closest("button[data-remove]"),show=e.target.closest("button[data-show]");
+  if(remove){selectedCads.delete(remove.dataset.remove);apply();return;}
+  if(show){
+    const d=DATA.find(d=>d.cad===show.dataset.show),entry=layers.get(show.dataset.show);
+    if(!entry)return;
+    document.getElementById("compareDialog").close();
+    // Reveal the selected object even if a filter was hiding it.
+    for(const id of ["q","sh","village","pr","areaMin","areaMax","unitMin","unitMax"]) document.getElementById(id).value="";
+    syncVillages();apply();
+    map.fitBounds(entry.lyr.getBounds(),{maxZoom:18});openPlotPopup(d);
+  }
+});
+// Native capture prevents map panning, popup opening and text selection during a Shift rectangle.
+const mapElement=map.getContainer();
+let dragSelection=null;
+function finishSelection(commit){
+  if(!dragSelection)return;
+  const drag=dragSelection;dragSelection=null;
+  drag.element.remove();
+  if(drag.wasDragging)map.dragging.enable();
+  document.body.style.userSelect=drag.userSelect;
+  if(drag.moved){
+    suppressPlotClickUntil=Date.now()+350;
+    if(commit){
+      const bounds=L.latLngBounds(map.containerPointToLatLng(drag.start),map.containerPointToLatLng(drag.end));
+      addSelectionInBounds(visibleObjects,bounds,d=>{const entry=layers.get(d.cad);return entry&&entry.m.getLatLng();});
+      apply();
+    }
+  }
+}
+mapElement.addEventListener("mousedown",e=>{
+  if(!e.shiftKey||e.button!==0||e.target.closest(".leaflet-control,.leaflet-popup"))return;
+  const start=map.mouseEventToContainerPoint(e),element=document.createElement("div");
+  element.className="selection-rect";element.hidden=true;mapElement.appendChild(element);
+  dragSelection={start,end:start,element,moved:false,wasDragging:map.dragging.enabled(),userSelect:document.body.style.userSelect};
+  map.dragging.disable();document.body.style.userSelect="none";
+  e.preventDefault();e.stopImmediatePropagation();
+},true);
+document.addEventListener("mousemove",e=>{
+  if(!dragSelection)return;
+  const drag=dragSelection;drag.end=map.mouseEventToContainerPoint(e);
+  if(drag.start.distanceTo(drag.end)>=5)drag.moved=true;
+  if(drag.moved){
+    drag.element.hidden=false;
+    Object.assign(drag.element.style,{left:Math.min(drag.start.x,drag.end.x)+"px",top:Math.min(drag.start.y,drag.end.y)+"px",width:Math.abs(drag.end.x-drag.start.x)+"px",height:Math.abs(drag.end.y-drag.start.y)+"px"});
+  }
+  e.preventDefault();e.stopImmediatePropagation();
+},true);
+document.addEventListener("mouseup",e=>{if(dragSelection){e.preventDefault();e.stopImmediatePropagation();finishSelection(true);}},true);
+mapElement.addEventListener("click",e=>{if(Date.now()<suppressPlotClickUntil){e.preventDefault();e.stopImmediatePropagation();}},true);
+window.addEventListener("blur",()=>finishSelection(false));
+document.addEventListener("keydown",e=>{
+  if(e.key!=="Escape")return;
+  if(dragSelection){finishSelection(false);return;}
+  if(document.getElementById("compareDialog").open||e.target.closest("input,textarea,select"))return;
+  selectedCads.clear();onlySelected=false;apply();
+});
+
 syncToggle();
 toggleBtn.addEventListener("click", () => setSideClosed(!sideEl.classList.contains("closed"), true));
 applyTheme();
