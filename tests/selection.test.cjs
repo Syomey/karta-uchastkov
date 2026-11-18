@@ -6,6 +6,7 @@ const element=id=>{if(!elements.has(id))elements.set(id,{value:'',validity:{vali
 let applied=0;const p=(x,y)=>({x,y,distanceTo(o){return Math.hypot(x-o.x,y-o.y)}});
 const mapElement=element('map');mapElement.appendChild=()=>{};
 const context={selectedCads:selected,visibleObjects:[],onlySelected:false,suppressPlotClickUntil:0,objectPopup:null,popupObject:null,DATA:[],layers:new Map(),fmt:n=>Math.round(n).toString(),esc:s=>String(s??''),theme:()=>({ours:c=>({color:c,fillColor:c,weight:2}),point:c=>({color:c,fillColor:c,weight:2}),marker:c=>({color:'#fff',fillColor:c,radius:5,weight:1})}),colOfPlot:()=> '#14532d',L:{CircleMarker:class {},latLngBounds:(a,b)=>({contains:c=>c.x>=Math.min(a.x,b.x)&&c.x<=Math.max(a.x,b.x)&&c.y>=Math.min(a.y,b.y)&&c.y<=Math.max(a.y,b.y)})},document:{getElementById:element,createElement:()=>element('rect'+elements.size),body:{style:{userSelect:'auto'}},addEventListener:(k,f)=>events[k]=f},window:{addEventListener:(k,f)=>events['window:'+k]=f},apply:()=>applied++,renderComparison:()=>{},syncVillages:()=>{},map:{getContainer:()=>mapElement,mouseEventToContainerPoint:e=>p(e.x,e.y),containerPointToLatLng:x=>x,dragging:{state:true,enabled(){return this.state},disable(){this.state=false},enable(){this.state=true}}}};
+context.updateTouchTools=()=>{};context.cancelEditorHold=()=>{};context.boxSelectionMode=false;context.touchSelectionMode=false;
 vm.createContext(context);vm.runInContext(helpers,context);
 const d={cad:'a',kind:'участок',price:4e6,area:800};
 assert.equal(context.areaSot(d),8);assert.equal(context.pricePerSot(d),500000);
@@ -30,7 +31,8 @@ context.toggleSelected('a');assert(selected.has('a'));context.toggleSelected('a'
 selected.add('hidden');context.visibleObjects=[d];context.updateSelectionUI();assert(element('selectionCount').textContent.includes('скрыто фильтрами: 1'));
 context.DATA=[{...d,id:'123',vill:'Доброе'},{...d,cad:'hidden',kind:'дом'}];selected.add('a');context.renderComparison();assert(element('compareBody').innerHTML.includes('object-card/123'));assert(element('compareBody').innerHTML.includes('500000'));
 const entry={d,lyr:{eachLayer(fn){fn({setStyle(s){this.style=s;entry.polygonStyle=s}})}},m:{setStyle(s){entry.markerStyle=s}}};context.stylePlot(entry);assert.equal(entry.polygonStyle.color,'#f59e0b');assert.equal(entry.polygonStyle.fillColor,'#14532d');selected.delete('a');context.stylePlot(entry);assert.equal(entry.polygonStyle.weight,2);assert.equal(entry.markerStyle.radius,5);
-vm.runInContext(template.slice(template.indexOf('document.getElementById("onlySelected").addEventListener'),template.lastIndexOf('\nsyncToggle();\ntoggleBtn.addEventListener')),context);
+vm.runInContext(template.slice(template.indexOf('document.getElementById("onlySelected").addEventListener'),template.indexOf('function isTouchDevice()')),context);
+vm.runInContext(template.slice(template.indexOf('// A transparent rectangle'),template.lastIndexOf('\nsyncToggle();\ntoggleBtn.addEventListener')),context);
 // Actual registered mouse handlers: reverse drag, additive selection, filtered objects only.
 context.visibleObjects=[d,{...d,cad:'b'},{...d,cad:'outside'}];
 for(const [cad,point] of [['a',p(15,15)],['b',p(25,25)],['outside',p(90,90)],['filtered',p(20,20)]])context.layers.set(cad,{m:{getLatLng:()=>point}});
@@ -42,6 +44,12 @@ selected.clear();mapElement.listeners.mousedown(event(0,0));events.mousemove(eve
 let intercepted=false;mapElement.listeners.mousedown(event(0,0,{shiftKey:false,preventDefault(){intercepted=true}}));assert(!intercepted);
 mapElement.listeners.mousedown(event(14,14));events.mouseup(event(14,14));assert.equal(selected.size,0);
 element('clearSelected').listeners.click();assert(!context.onlySelected);assert.equal(selected.size,0);
+// Touch rectangle mode, cancellation and two-finger handoff.
+context.boxSelectionMode=true;
+const touchEvent=(points)=>({...event(0,0),touches:points.map(([x,y])=>({clientX:x,clientY:y,x,y}))});
+mapElement.listeners.touchstart(touchEvent([[10,10]]));events.touchmove(touchEvent([[30,30]]));events.touchend(touchEvent([]));assert(selected.has('a')&&selected.has('b'));assert(context.map.dragging.enabled());
+selected.clear();mapElement.listeners.touchstart(touchEvent([[10,10]]));events.touchmove(touchEvent([[30,30]]));events.touchcancel();assert.equal(selected.size,0);assert(context.map.dragging.enabled());
+mapElement.listeners.touchstart(touchEvent([[10,10]]));mapElement.listeners.touchstart(touchEvent([[10,10],[30,30]]));assert(context.map.dragging.enabled());assert.equal(selected.size,0);
 const popupSource=template.slice(template.indexOf('function popup(d){'),template.indexOf('\nconst layers = new Map();'));
 context.isClientView=()=>true;context.territoryName=String;context.layers=new Map();vm.runInContext(popupSource,context);
 assert(context.popup({...d,id:'123'}).includes('object-card/123'));assert(context.popup(d).includes('500000 ₽/сот.'));

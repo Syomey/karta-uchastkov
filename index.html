@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="map-release" content="2026-11-18-selection">
+<meta name="map-release" content="2026-11-18-touch-selection">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Участки на карте</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -88,7 +88,7 @@ button.action:disabled{opacity:.45;cursor:default}
 button.action[aria-pressed="true"]{background:var(--accent);color:white}
 #list li.picked{box-shadow:inset 4px 0 #f59e0b;background:color-mix(in srgb,var(--panel) 80%,#f59e0b 20%)}
 #list input.pickCheck{width:18px;height:18px;margin:0 7px 0 0;vertical-align:middle;accent-color:#d97706;cursor:pointer}
-.selection-rect{position:absolute;pointer-events:none;z-index:650;border:2px solid #f59e0b;background:#f59e0b25}
+.selection-rect{position:absolute;pointer-events:none;z-index:650;border:2px solid #f59e0b;background:transparent;box-shadow:0 0 0 10000px rgba(0,0,0,.58)}
 #compareDialog{width:min(1100px,96vw);max-height:88dvh;padding:0;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--fg)}
 #compareDialog::backdrop{background:#0007}
 #compareDialog header{padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px}
@@ -100,6 +100,33 @@ button.action[aria-pressed="true"]{background:var(--accent);color:white}
 #compareDialog a{color:var(--accent)}
 #compareNote{padding:10px 16px;font-size:12px;color:var(--muted)}
 @media(max-width:760px){#side{max-height:55%}#side header{max-height:27dvh}#selectionBar{padding:6px 14px}#compareDialog{width:98vw}}
+
+#map{overflow:hidden}
+#touchTools{display:none;background:var(--panel);color:var(--fg);padding:7px;border:1px solid var(--line);border-radius:10px;box-shadow:0 2px 8px #0003;max-width:310px}
+#touchTools .row{margin:0;gap:5px;flex-wrap:wrap}
+#touchTools button{min-height:44px;min-width:44px}
+#touchModeHint{font-size:12px;max-width:275px;margin-top:5px}
+#side h1{-webkit-touch-callout:none;user-select:none}
+@media(pointer:coarse),(max-width:760px){
+  #touchTools{display:block}
+  input,select,button.action{font-size:16px;min-height:44px}
+  #list input.pickCheck{width:24px;height:24px;min-height:24px}
+  #list li{padding-top:12px;padding-bottom:12px}
+  #editPanel{width:min(440px,100%)}
+  #editFoot{padding-bottom:max(10px,env(safe-area-inset-bottom))}
+}
+@media(max-width:760px){
+  #app{display:block}#map{width:100%;height:100%}
+  #side{position:absolute;bottom:0;left:0;width:100%;height:62dvh;max-height:none;z-index:1001;border:1px solid var(--line);border-bottom:0;border-radius:16px 16px 0 0;box-shadow:0 -3px 18px #0003}
+  #side.closed{height:0;max-height:0;width:100%;border:0;box-shadow:none}
+  #side header{max-height:27dvh}#side h1{padding-right:0;font-size:14px}
+  #list{min-height:0}#selectionBar{padding:7px 12px}
+  #toggle,#side.closed #toggle{position:absolute;left:auto;right:12px;top:-46px;transform:none;writing-mode:horizontal-tb;min-height:40px;padding:8px 14px;border:1px solid var(--line);border-radius:8px}
+  #side:not(.closed)~#map .leaflet-bottom{bottom:calc(62dvh + 8px)}
+  #side.closed~#map .leaflet-bottom{bottom:max(8px,env(safe-area-inset-bottom))}
+  #touchTools{max-width:260px}
+  #editPanel{width:100%;height:100dvh}
+}
 </style>
 </head>
 <body>
@@ -137,8 +164,9 @@ button.action[aria-pressed="true"]{background:var(--accent);color:white}
     </header>
     <div id="selectionBar">
       <div id="selectionCount" role="status" aria-live="polite">Выбрано: 0</div>
-      <div class="row"><button class="action" id="onlySelected" type="button" aria-pressed="false">Только выбранные</button><button class="action" id="compareSelected" type="button" disabled>Сравнить</button><button class="action" id="clearSelected" type="button" disabled>Снять выделение</button></div>
-      <div style="margin-top:5px;color:var(--muted)">Shift + клик — выбрать; Shift + перетаскивание — рамка. Также можно отметить флажки.</div>
+      <div class="row"><button class="action" id="onlySelected" type="button" aria-pressed="false">Только выбранные</button><button class="action" id="compareSelected" type="button" disabled>Сравнить</button><button class="action" id="copySelected" type="button" disabled>Копировать</button><button class="action" id="clearSelected" type="button" disabled>Снять выделение</button></div>
+      <div id="copyStatus" role="status" aria-live="polite"></div>
+      <div id="selectionHelp" style="margin-top:5px;color:var(--muted)">Shift + клик — выбрать; Shift + перетаскивание — рамка. Также можно отметить флажки.</div>
     </div>
     <ul id="list"></ul>
   </aside>
@@ -176,9 +204,9 @@ button.action[aria-pressed="true"]{background:var(--accent);color:white}
     </div>
   </div>
 </div>
-<dialog id="compareDialog" aria-labelledby="compareTitle"><header><h2 id="compareTitle">Сравнение объектов</h2><button type="button" class="action" id="closeCompare">Закрыть</button></header><div class="compareScroll"><table><thead><tr><th>Кадастр</th><th>Населённый пункт</th><th>Земля, сот.</th><th>Цена, ₽</th><th>₽/сот.</th><th>Топнлаб</th><th>Действия</th></tr></thead><tbody id="compareBody"></tbody></table></div><div id="compareNote"></div></dialog>
-<script src="data/objects.js?v=202611181206"></script>
-<script src="data/grid/index.js?v=202611181206"></script>
+<dialog id="compareDialog" aria-labelledby="compareTitle"><header><h2 id="compareTitle">Сравнение объектов</h2><button type="button" class="action" id="compareCopy" disabled>Копировать</button><button type="button" class="action" id="closeCompare">Закрыть</button></header><div class="compareScroll"><table><thead><tr><th>Кадастр</th><th>Населённый пункт</th><th>Земля, сот.</th><th>Цена, ₽</th><th>₽/сот.</th><th>Топнлаб</th><th>Действия</th></tr></thead><tbody id="compareBody"></tbody></table></div><div id="compareNote"></div></dialog>
+<script src="data/objects.js?v=202611181251"></script>
+<script src="data/grid/index.js?v=202611181251"></script>
 <script>
 const THEMES = {};
 // Theme: обычная. A theme is one object in THEMES; every file in themes\ is inlined by build.ps1.
@@ -279,6 +307,7 @@ const DATA = window.OBJECTS || [];
 const selectedCads = new Set();
 let visibleObjects = [], onlySelected = false, suppressPlotClickUntil = 0;
 let objectPopup = null, popupObject = null;
+let touchSelectionMode = false, boxSelectionMode = false;
 // Plots without an NSPD outline arrive with an empty geometry object.
 for (const d of DATA) {
   if (!d.g || !Array.isArray(d.g.coordinates)) { d.g = null; continue; }
@@ -290,7 +319,7 @@ for (const d of DATA) {
 }
 const NEIGH = [];
 const BUILT = "18.11.2026";
-const POS_OF = {"Трудолюбово":"Чистенское","Чайковское":"Добровское","Денисовка":"Трудовское","Семидворье":"г.о. Алушта","Молодежное":"Молодежненское","Верхняя Кутузовка":"г.о. Алушта","Фонтаны":"Чистенское","Пионерское":"Добровское","Винницкое":"Николаевское","Запрудное":"г.о. Алушта","Чайка":"г.о. Алушта","Веселое":"Перовское","Новозбурьевка":"Чистенское","Ферсманово":"Добровское","Ана-Юрт":"Трудовское","Ключи":"Перовское","Кипарисное":"г.о. Алушта","Лозовое":"Добровское","Доброе":"Добровское","Виноградное":"г.о. Алушта","Партизанское":"Перовское","Клиновка":"Перовское","Камышинка":"Чистенское","Перевальное":"Добровское","Нижнее":"г.о. Алушта","Утёс":"г.о. Алушта","Строгановка":"Трудовское","Краснолесье":"Добровское","Мирное":"Мирновское","Красновка":"Мазанское","Алушта":"г.о. Алушта","Трудовое":"Трудовское","Мазанка":"Мазанское","Нижняя Кутузовка":"г.о. Алушта","Лавровое":"г.о. Алушта","Нижнее Запрудное":"г.о. Алушта","Андрусово":"Добровское","Лаванда":"г.о. Алушта","Белоглинка":"Мирновское","Розовый":"г.о. Алушта","Константиновка":"Перовское","Пушкино":"г.о. Алушта","Лазурное":"г.о. Алушта","Скворцово":"Скворцовское","Солнечногорское":"г.о. Алушта","Изобильное":"г.о. Алушта","Молочное":"Перовское","Привольное":"Добровское","Украинка":"Перовское","Малый Маяк":"г.о. Алушта","Дубки":"Перовское","Заречное":"Добровское","Тепловка":"Николаевское","Трехпрудное":"Чистенское","Клёновка":"Донское","Лазаревка":"Трудовское","Каштановое":"Перовское","Левадки":"Чистенское","Малореченское":"г.о. Алушта","Солнечное":"Молодежненское","Мраморное":"Добровское","Лучистое":"г.о. Алушта","Николаевка":"Николаевское","Рыбачье":"г.о. Алушта","Урожайное":"Трудовское","Акрополис":"Трудовское","Перово":"Перовское","Обрыв":"Перовское","Генеральское":"г.о. Алушта","Чистенькое":"Чистенское","Дружное":"Трудовское","Партенит":"г.о. Алушта","Петропавловка":"Добровское","Айкаван":"Трудовское","Дмитрово":"Донское","Ивановка":"Трудовское"};
+const POS_OF = {"Нижнее Запрудное":"г.о. Алушта","Тепловка":"Николаевское","Верхняя Кутузовка":"г.о. Алушта","Строгановка":"Трудовское","Лаванда":"г.о. Алушта","Трехпрудное":"Чистенское","Трудовое":"Трудовское","Партенит":"г.о. Алушта","Петропавловка":"Добровское","Перово":"Перовское","Рыбачье":"г.о. Алушта","Ферсманово":"Добровское","Камышинка":"Чистенское","Мраморное":"Добровское","Ключи":"Перовское","Привольное":"Добровское","Кипарисное":"г.о. Алушта","Семидворье":"г.о. Алушта","Винницкое":"Николаевское","Пушкино":"г.о. Алушта","Утёс":"г.о. Алушта","Клёновка":"Донское","Заречное":"Добровское","Мазанка":"Мазанское","Левадки":"Чистенское","Акрополис":"Трудовское","Нижнее":"г.о. Алушта","Белоглинка":"Мирновское","Лазаревка":"Трудовское","Лучистое":"г.о. Алушта","Солнечное":"Молодежненское","Молочное":"Перовское","Изобильное":"г.о. Алушта","Урожайное":"Трудовское","Запрудное":"г.о. Алушта","Розовый":"г.о. Алушта","Нижняя Кутузовка":"г.о. Алушта","Денисовка":"Трудовское","Трудолюбово":"Чистенское","Чайка":"г.о. Алушта","Доброе":"Добровское","Лазурное":"г.о. Алушта","Каштановое":"Перовское","Пионерское":"Добровское","Ана-Юрт":"Трудовское","Молодежное":"Молодежненское","Дубки":"Перовское","Чайковское":"Добровское","Украинка":"Перовское","Айкаван":"Трудовское","Партизанское":"Перовское","Красновка":"Мазанское","Веселое":"Перовское","Фонтаны":"Чистенское","Николаевка":"Николаевское","Дружное":"Трудовское","Перевальное":"Добровское","Лавровое":"г.о. Алушта","Мирное":"Мирновское","Андрусово":"Добровское","Генеральское":"г.о. Алушта","Лозовое":"Добровское","Константиновка":"Перовское","Солнечногорское":"г.о. Алушта","Новозбурьевка":"Чистенское","Малореченское":"г.о. Алушта","Дмитрово":"Донское","Ивановка":"Трудовское","Обрыв":"Перовское","Малый Маяк":"г.о. Алушта","Алушта":"г.о. Алушта","Виноградное":"г.о. Алушта","Чистенькое":"Чистенское","Краснолесье":"Добровское","Клиновка":"Перовское","Скворцово":"Скворцовское"};
 const COLORS = {"Трудовское":"#e11d48","Перовское":"#2563eb","Мирновское":"#16a34a","Чистенское":"#d97706","Добровское":"#7c3aed"};
 const PALETTE = ["#0891b2","#db2777","#65a30d","#ea580c","#4f46e5","#0d9488","#b45309","#9333ea","#dc2626","#0284c7","#ca8a04","#059669"];
 const col = s => { if (COLORS[s]) return COLORS[s]; let h = 0; for (const ch of String(s||"")) h = (h*31 + ch.charCodeAt(0)) >>> 0; return PALETTE[h % PALETTE.length]; };
@@ -418,6 +447,27 @@ function toggleSelected(cad){
   if(selectedCads.has(cad))selectedCads.delete(cad);else selectedCads.add(cad);
   apply();
 }
+function selectedCadText(){
+  return sortObjects(DATA.filter(d=>selectedCads.has(d.cad)),document.getElementById("sortOrder").value).map(d=>d.cad).join("\n");
+}
+async function copySelectedCads(){
+  const text=selectedCadText();if(!text)return;
+  let copied=false;
+  if(navigator.clipboard && navigator.clipboard.writeText){try{await navigator.clipboard.writeText(text);copied=true;}catch(e){}}
+  if(!copied){
+    const focused=document.activeElement,field=document.createElement("textarea");
+    field.value=text;field.style.cssText="position:fixed;top:0;left:0;opacity:0;font-size:16px";
+    const host=document.getElementById("compareDialog").open?document.getElementById("compareDialog"):document.body;
+    host.appendChild(field);field.focus();field.select();field.setSelectionRange(0,text.length);
+    try{copied=document.execCommand("copy");}catch(e){}
+    field.remove();if(focused&&focused.focus)focused.focus({preventScroll:true});
+  }
+  document.getElementById("copyStatus").textContent=copied?"Скопировано номеров: "+text.split("\n").length:"Автоматическое копирование недоступно.";
+  if(copied){
+    for(const id of ["copySelected","touchCopy","compareCopy"]){const b=document.getElementById(id);if(b)b.textContent="Скопировано";}
+    setTimeout(()=>{for(const id of ["copySelected","touchCopy","compareCopy"]){const b=document.getElementById(id);if(b)b.textContent="Копировать";}},2500);
+  }else window.prompt("Скопируйте кадастровые номера:",text);
+}
 function openPlotPopup(d){
   const entry=layers.get(d.cad); if(!entry)return;
   popupObject=d;
@@ -430,7 +480,10 @@ function updateSelectionUI(){
   document.getElementById("selectionCount").textContent="Выбрано: "+selectedCads.size+(hidden?" · скрыто фильтрами: "+hidden:"");
   document.getElementById("clearSelected").disabled=!selectedCads.size;
   document.getElementById("compareSelected").disabled=selectedCads.size<2;
+  document.getElementById("copySelected").disabled=!selectedCads.size;
+  document.getElementById("compareCopy").disabled=!selectedCads.size;
   document.getElementById("onlySelected").setAttribute("aria-pressed",String(onlySelected));
+  updateTouchTools();
 }
 function renderComparison(){
   const rows=sortObjects(DATA.filter(d=>selectedCads.has(d.cad)),document.getElementById("sortOrder").value);
@@ -452,7 +505,7 @@ function editorUnlocked(){
   try { return localStorage.getItem(EDIT_UNLOCK_KEY) === "1"; } catch (e) { return false; }
 }
 function editorAutoPick(){
-  if (!editorUnlocked()) return false;
+  if (!editorUnlocked() || isTouchDevice()) return false;
   try { return localStorage.getItem(EDIT_AUTO_KEY) !== "0"; } catch (e) { return true; }
 }
 function syncEditAutoCheckbox(){
@@ -808,7 +861,7 @@ for (const d of DATA) {
   m.bindTooltip(d.cad);
   const pick = e => {
     if (Date.now() < suppressPlotClickUntil) return;
-    if (e.originalEvent && e.originalEvent.shiftKey) { toggleSelected(d.cad); return; }
+    if (touchSelectionMode || (e.originalEvent && e.originalEvent.shiftKey)) { toggleSelected(d.cad); return; }
     pickObject(d); openPlotPopup(d);
   };
   lyr.on("click", pick);
@@ -921,7 +974,7 @@ function apply(){
 }
 list.addEventListener("click", e => {
   const li = e.target.closest("li"); if (!li) return;
-  if (e.shiftKey || e.target.matches("input.pickCheck")) { e.preventDefault(); toggleSelected(li.dataset.c); return; }
+  if (touchSelectionMode || e.shiftKey || e.target.matches("input.pickCheck")) { e.preventDefault(); toggleSelected(li.dataset.c); return; }
   const L1 = layers.get(li.dataset.c); if (!L1) return;
   pickObject(L1.d);
   map.fitBounds(L1.lyr.getBounds(), {maxZoom:18});
@@ -955,6 +1008,7 @@ document.getElementById("onlySelected").addEventListener("click",()=>{onlySelect
 document.getElementById("clearSelected").addEventListener("click",()=>{selectedCads.clear();onlySelected=false;apply();});
 document.getElementById("compareSelected").addEventListener("click",()=>{renderComparison();document.getElementById("compareDialog").showModal();});
 document.getElementById("closeCompare").addEventListener("click",()=>document.getElementById("compareDialog").close());
+for(const id of ["copySelected","compareCopy"])document.getElementById(id).addEventListener("click",copySelectedCads);
 document.getElementById("compareBody").addEventListener("click",e=>{
   const remove=e.target.closest("button[data-remove]"),show=e.target.closest("button[data-show]");
   if(remove){selectedCads.delete(remove.dataset.remove);apply();return;}
@@ -968,9 +1022,69 @@ document.getElementById("compareBody").addEventListener("click",e=>{
     map.fitBounds(entry.lyr.getBounds(),{maxZoom:18});openPlotPopup(d);
   }
 });
-// Native capture prevents map panning, popup opening and text selection during a Shift rectangle.
+function isTouchDevice(){return (window.matchMedia && window.matchMedia("(pointer:coarse)").matches) || navigator.maxTouchPoints > 0;}
+function updateTouchTools(){
+  const select=document.getElementById("touchSelect");if(!select)return;
+  select.setAttribute("aria-pressed",String(touchSelectionMode&&!boxSelectionMode));
+  document.getElementById("touchBox").setAttribute("aria-pressed",String(boxSelectionMode));
+  document.getElementById("touchDone").hidden=!touchSelectionMode;
+  const compare=document.getElementById("touchCompare");compare.hidden=selectedCads.size<2;compare.textContent="Сравнить ("+selectedCads.size+")";
+  document.getElementById("touchCopy").hidden=!selectedCads.size;
+  document.getElementById("touchModeHint").textContent=boxSelectionMode?"Рамка: протяните одним пальцем. Два пальца — масштаб. «Готово» — вернуться к карте.":touchSelectionMode?"Нажимайте на участки, чтобы выбрать или убрать. Выбрано: "+selectedCads.size:"";
+  map.getContainer().classList.toggle("box-selection-active",boxSelectionMode);
+  document.getElementById("selectionHelp").textContent=isTouchDevice()?"Выбирайте флажками или кнопками «Выбрать» и «Рамка» на карте.":"Shift + клик — выбрать; Shift + перетаскивание — рамка. Также можно отметить флажки.";
+}
+function setTouchSelection(mode){
+  finishSelection(false);
+  touchSelectionMode=mode!=="off";boxSelectionMode=mode==="box";
+  if(touchSelectionMode){map.closePopup();closeObjectEditor();if(innerWidth<=760)setSideClosed(true,false);}
+  updateTouchTools();
+}
+const touchControl=L.control({position:"topright"});
+touchControl.onAdd=()=>{
+  const box=L.DomUtil.create("div");box.id="touchTools";
+  box.innerHTML='<div class="row"><button class="action" type="button" id="touchSelect" aria-pressed="false">Выбрать</button><button class="action" type="button" id="touchBox" aria-pressed="false">Рамка</button><button class="action" type="button" id="touchDone" hidden>Готово</button><button class="action" type="button" id="touchCompare" hidden>Сравнить</button><button class="action" type="button" id="touchCopy" hidden>Копировать</button></div><div id="touchModeHint" role="status" aria-live="polite"></div>';
+  L.DomEvent.disableClickPropagation(box);L.DomEvent.disableScrollPropagation(box);return box;
+};
+touchControl.addTo(map);
+document.getElementById("touchSelect").addEventListener("click",()=>setTouchSelection(touchSelectionMode&&!boxSelectionMode?"off":"tap"));
+document.getElementById("touchBox").addEventListener("click",()=>setTouchSelection(boxSelectionMode?"off":"box"));
+document.getElementById("touchDone").addEventListener("click",()=>setTouchSelection("off"));
+document.getElementById("touchCompare").addEventListener("click",()=>{renderComparison();document.getElementById("compareDialog").showModal();});
+document.getElementById("touchCopy").addEventListener("click",copySelectedCads);
+// No visible editor controls or hints: hold the title for two seconds to use the existing password gate.
+const brand=document.querySelector("#side h1");
+let editorHold=null,editorHoldStart=null;
+function cancelEditorHold(){if(editorHold!==null)clearTimeout(editorHold);editorHold=null;editorHoldStart=null;}
+brand.addEventListener("touchstart",e=>{
+  cancelEditorHold();if(e.touches.length!==1)return;
+  editorHoldStart={x:e.touches[0].clientX,y:e.touches[0].clientY};
+  editorHold=setTimeout(()=>{editorHold=null;editorHoldStart=null;openObjectEditor();},2000);
+},{passive:true});
+brand.addEventListener("touchmove",e=>{if(editorHoldStart&&(e.touches.length!==1||Math.hypot(e.touches[0].clientX-editorHoldStart.x,e.touches[0].clientY-editorHoldStart.y)>12))cancelEditorHold();},{passive:true});
+for(const event of ["touchend","touchcancel"])brand.addEventListener(event,cancelEditorHold,{passive:true});
+brand.addEventListener("contextmenu",e=>{if(isTouchDevice())e.preventDefault();});
+
+// A transparent rectangle with a large clipped shadow leaves its contents at normal brightness.
 const mapElement=map.getContainer();
 let dragSelection=null;
+function startSelection(e,point){
+  const start=map.mouseEventToContainerPoint(point),element=document.createElement("div");
+  element.className="selection-rect";element.hidden=true;mapElement.appendChild(element);
+  dragSelection={start,end:start,element,moved:false,wasDragging:map.dragging.enabled(),userSelect:document.body.style.userSelect};
+  map.dragging.disable();document.body.style.userSelect="none";
+  e.preventDefault();e.stopImmediatePropagation();
+}
+function moveSelection(e,point){
+  if(!dragSelection)return;
+  const drag=dragSelection;drag.end=map.mouseEventToContainerPoint(point);
+  if(drag.start.distanceTo(drag.end)>=5)drag.moved=true;
+  if(drag.moved){
+    drag.element.hidden=false;
+    Object.assign(drag.element.style,{left:Math.min(drag.start.x,drag.end.x)+"px",top:Math.min(drag.start.y,drag.end.y)+"px",width:Math.abs(drag.end.x-drag.start.x)+"px",height:Math.abs(drag.end.y-drag.start.y)+"px"});
+  }
+  e.preventDefault();e.stopImmediatePropagation();
+}
 function finishSelection(commit){
   if(!dragSelection)return;
   const drag=dragSelection;dragSelection=null;
@@ -978,7 +1092,7 @@ function finishSelection(commit){
   if(drag.wasDragging)map.dragging.enable();
   document.body.style.userSelect=drag.userSelect;
   if(drag.moved){
-    suppressPlotClickUntil=Date.now()+350;
+    suppressPlotClickUntil=Date.now()+500;
     if(commit){
       const bounds=L.latLngBounds(map.containerPointToLatLng(drag.start),map.containerPointToLatLng(drag.end));
       addSelectionInBounds(visibleObjects,bounds,d=>{const entry=layers.get(d.cad);return entry&&entry.m.getLatLng();});
@@ -987,32 +1101,29 @@ function finishSelection(commit){
   }
 }
 mapElement.addEventListener("mousedown",e=>{
-  if(!e.shiftKey||e.button!==0||e.target.closest(".leaflet-control,.leaflet-popup"))return;
-  const start=map.mouseEventToContainerPoint(e),element=document.createElement("div");
-  element.className="selection-rect";element.hidden=true;mapElement.appendChild(element);
-  dragSelection={start,end:start,element,moved:false,wasDragging:map.dragging.enabled(),userSelect:document.body.style.userSelect};
-  map.dragging.disable();document.body.style.userSelect="none";
-  e.preventDefault();e.stopImmediatePropagation();
+  if((!e.shiftKey&&!boxSelectionMode)||e.button!==0||e.target.closest(".leaflet-control,.leaflet-popup"))return;
+  startSelection(e,e);
 },true);
-document.addEventListener("mousemove",e=>{
-  if(!dragSelection)return;
-  const drag=dragSelection;drag.end=map.mouseEventToContainerPoint(e);
-  if(drag.start.distanceTo(drag.end)>=5)drag.moved=true;
-  if(drag.moved){
-    drag.element.hidden=false;
-    Object.assign(drag.element.style,{left:Math.min(drag.start.x,drag.end.x)+"px",top:Math.min(drag.start.y,drag.end.y)+"px",width:Math.abs(drag.end.x-drag.start.x)+"px",height:Math.abs(drag.end.y-drag.start.y)+"px"});
-  }
-  e.preventDefault();e.stopImmediatePropagation();
-},true);
+document.addEventListener("mousemove",e=>moveSelection(e,e),true);
 document.addEventListener("mouseup",e=>{if(dragSelection){e.preventDefault();e.stopImmediatePropagation();finishSelection(true);}},true);
-mapElement.addEventListener("click",e=>{if(Date.now()<suppressPlotClickUntil){e.preventDefault();e.stopImmediatePropagation();}},true);
-window.addEventListener("blur",()=>finishSelection(false));
+mapElement.addEventListener("touchstart",e=>{
+  if(e.touches.length>1){finishSelection(false);return;}
+  if(!boxSelectionMode||e.target.closest(".leaflet-control,.leaflet-popup"))return;
+  startSelection(e,e.touches[0]);
+},{capture:true,passive:false});
+document.addEventListener("touchmove",e=>{if(!dragSelection)return;if(e.touches.length!==1){finishSelection(false);return;}moveSelection(e,e.touches[0]);},{capture:true,passive:false});
+document.addEventListener("touchend",e=>{if(!dragSelection)return;e.preventDefault();e.stopImmediatePropagation();suppressPlotClickUntil=Date.now()+500;finishSelection(true);},{capture:true,passive:false});
+document.addEventListener("touchcancel",()=>finishSelection(false),true);
+mapElement.addEventListener("click",e=>{if(Date.now()<suppressPlotClickUntil&&!e.target.closest(".leaflet-control")){e.preventDefault();e.stopImmediatePropagation();}},true);
+window.addEventListener("blur",()=>{finishSelection(false);cancelEditorHold();});
 document.addEventListener("keydown",e=>{
   if(e.key!=="Escape")return;
   if(dragSelection){finishSelection(false);return;}
   if(document.getElementById("compareDialog").open||e.target.closest("input,textarea,select"))return;
+  if(touchSelectionMode){setTouchSelection("off");return;}
   selectedCads.clear();onlySelected=false;apply();
 });
+updateTouchTools();
 
 syncToggle();
 toggleBtn.addEventListener("click", () => setSideClosed(!sideEl.classList.contains("closed"), true));
