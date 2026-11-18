@@ -5,10 +5,11 @@ const PATH='sync/topnlab-job.json';
 async function saveJob(job,etag){return put(PATH,JSON.stringify(job),{access:'private',abortSignal:AbortSignal.timeout(10000),addRandomSuffix:false,allowOverwrite:!!etag,...(etag?{ifMatch:etag}:{})});}
 async function checkpoint(job){await put('sync/topnlab-checkpoint.json',JSON.stringify({seenIds:[...new Set(job.seenIds)],finishedAt:job.finishedAt}),{access:'private',abortSignal:AbortSignal.timeout(10000),addRandomSuffix:false,allowOverwrite:true});}
 export default async function handler(req,res){res.setHeader('Cache-Control','private, no-store');
- if(!authorized(req,true)||!process.env.EDITOR_PASSWORD||req.headers['x-editor-password']!==process.env.EDITOR_PASSWORD||!sameOrigin(req))return res.status(403).json({error:'Доступно только владельцу в редакторе.'});
+ const runner=req.method==='POST'&&req.query.action==='step'&&req.query.job===process.env.SYNC_RUN_JOB&&!!process.env.SYNC_RUN_TOKEN&&req.headers['x-sync-runner']===process.env.SYNC_RUN_TOKEN;
+ if(!runner&&(!authorized(req,true)||!process.env.EDITOR_PASSWORD||req.headers['x-editor-password']!==process.env.EDITOR_PASSWORD||!sameOrigin(req)))return res.status(403).json({error:'Доступно только владельцу в редакторе.'});
  const action=req.query.action||'status';let job,lease;
  try{
- const saved=await read(PATH);job=saved?.data;
+ const saved=await read(PATH);job=saved?.data;if(runner&&job?.id!==req.query.job)return res.status(403).end();
  if(req.method==='GET'){if(action==='report')return res.json({summary:summary(job),review:job?.review||[]});return res.json(summary(job));}
  if(req.method!=='POST')return res.status(405).end();
  if(!process.env.TOPNLAB_API_KEY)return res.status(503).json({error:'Не настроен ключ API Топнлаба.'});
