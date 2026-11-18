@@ -22,7 +22,7 @@ export default async function handler(req,res){res.setHeader('Cache-Control','pr
   const ids=new Set(),changed=new Set();for(const realty_type of ['land','house']){const data=await call('get-ids',{type:'realty',realty_type,action:'sale'});const list=Array.isArray(data)?data:data.data;if(!Array.isArray(list))throw Error('Не удалось получить список ID Топнлаба.');list.forEach(id=>ids.add(String(id)));}
   if(cp?.finishedAt){for(const realty_type of ['land','house']){const data=await call('get-ids',{type:'realty',realty_type,action:'sale',manual_update_from:new Date(Date.parse(cp.finishedAt)-86400000).toISOString().slice(0,10)});const list=Array.isArray(data)?data:data.data;if(!Array.isArray(list))throw Error('Не удалось получить изменённые ID.');list.forEach(id=>changed.add(String(id)));}}
   const current=merged((await state()).data),existing=new Set(current.filter(d=>d.id).map(d=>String(d.id))),seen=new Set(job.seenIds);
-  job.ids=[...ids].filter(id=>!existing.has(id)&&(!seen.has(id)||changed.has(id)));job.counts.existing=existing.size;job.phase=job.ids.length?'scan':'commit';await saveJob(job,lease);lease=null;return res.json(summary(job));
+  job.ids=[...ids].filter(id=>!existing.has(id)&&(!seen.has(id)||changed.has(id))).sort((a,b)=>Number(b)-Number(a));job.counts.existing=existing.size;job.phase=job.ids.length?'scan':'commit';await saveJob(job,lease);lease=null;return res.json(summary(job));
  }
  if(action!=='step'||!job)return res.status(400).json({error:'Сначала начните загрузку.'});
  if(job.phase==='done')return res.json(summary(job));
@@ -31,8 +31,15 @@ export default async function handler(req,res){res.setHeader('Cache-Control','pr
  if(job.nextApiAt>Date.now())return res.json(summary(job));
  job.leaseUntil=Date.now()+90000;job.lastError='';const locked=await saveJob(job,saved.etag);lease=locked.etag;
  if(job.phase==='scan'){
-  const ids=job.ids.slice(job.cursor,job.cursor+150);job.nextApiAt=Date.now()+6100;
-  const response=await apiCall(process.env.TOPNLAB_API_KEY,'get-entities',{type:'realty',id:ids},true);const entities=response.data||response;
+  const ids=job.ids.slice(job.cursor,job.cursor+(job.batchSize||150));job.nextApiAt=Date.now()+6100;
+  let response;
+  try{response=await apiCall(process.env.TOPNLAB_API_KEY,'get-entities',{type:'realty',id:ids},true);job.failures=0;}catch(e){
+   if(!(e.httpStatus===429||e.httpStatus>=500))throw e;
+   job.failures=(job.failures||0)+1;job.nextApiAt=Date.now()+15000;job.lastError='Топнлаб временно недоступен, повторяем пакет.';
+   if(job.failures>=3){if(ids.length>1){job.batchSize=Math.max(1,Math.floor(ids.length/2));job.failures=0;}else{job.review.push({id:ids[0],reason:'api_error'});job.counts.missingApi++;job.cursor++;job.failures=0;job.batchSize=150;if(job.cursor>=job.ids.length){job.geometryIds=job.candidates.filter(d=>d._needsGeometry).map(d=>d.cad);job.phase=job.geometryIds.length?'geometry':'commit';}}}
+   job.leaseUntil=0;await saveJob(job,lease);lease=null;return res.json(summary(job));
+  }
+  const entities=response.data||response;
   job.counts.missingApi+=ids.filter(id=>!entities[id]).length;inspectEntities(job,entities,merged((await state()).data),cache());job.cursor+=ids.length;
   if(job.cursor>=job.ids.length){job.geometryIds=job.candidates.filter(d=>d._needsGeometry).map(d=>d.cad);job.phase=job.geometryIds.length?'geometry':'commit';}
  }else if(job.phase==='geometry'){

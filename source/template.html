@@ -1267,7 +1267,7 @@ document.getElementById('topnlabImport').onclick=async()=>{
  if(topnlabRunning)return;
  try{if(!await saveCloud())return;topnlabRunning=true;document.getElementById('topnlabImport').disabled=true;document.querySelectorAll('#editForm input,#cloudSave,#editApply').forEach(e=>e.disabled=true);
  let s=await topnlabRequest('start',true);syncProgress(s);
- while(s.phase!=='done'){await new Promise(r=>setTimeout(r,Math.max(1000,Math.min(s.waitMs||0,6500))));s=await topnlabRequest('step',true);syncProgress(s);}
+ while(s.phase!=='done'){await new Promise(r=>setTimeout(r,Math.max(1000,Math.min(s.waitMs||0,15000))));s=await topnlabRequest('step',true);syncProgress(s);}
  const report='Добавлено: '+s.counts.added+' объектов. Без кадастра участка: '+s.counts.noCad+'. Совпадения для проверки: '+s.counts.conflicts+'. Границы не загрузились: '+s.counts.geometryMissing+'. Подробности — в кнопке «Отчёт загрузки».';sessionStorage.setItem('topnlabLastReport',report);alert(report);location.reload();
  }catch(e){document.getElementById('editStatus').textContent=e.message+' Нажмите «Загрузить новые из Топнлаба», чтобы продолжить.';}
  finally{topnlabRunning=false;document.getElementById('topnlabImport').disabled=false;document.querySelectorAll('#editForm input,#cloudSave,#editApply').forEach(e=>e.disabled=false);}
