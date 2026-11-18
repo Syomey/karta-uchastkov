@@ -269,6 +269,7 @@ const THEMES = {};
 /*THEMES*/
 // Site build: objects come from data/objects.js (window.OBJECTS); single-file build inlines them here.
 const DATA = window.OBJECTS || /*DATA*/[];
+const cloudStaticBase=new Map(DATA.map(d=>[d.cad,{...d}]));
 const SESSION_PATCH_KEY="mapSessionPatchesV2";
 const sessionPatches=new Map();
 const patchFields=["id","price","vill","sheet","kind","title","agent","src","avito"];
@@ -1224,7 +1225,7 @@ async function cloudRequest(action,body){
 }
 async function loadCloud(){
  try{const r=await cloudRequest('load');cloudRevision=sessionPatches.size && sessionStorage.getItem("cloudDraftRevision")!==null?Number(sessionStorage.getItem("cloudDraftRevision")):r.revision;
-  for(const d of DATA){if(r.overrides[d.cad])Object.assign(d,r.overrides[d.cad]);cloudBaseline.set(d.cad,{...d});const draft=sessionPatches.get(d.cad);if(draft)for(const f of patchFields)if(Object.hasOwn(draft,f))d[f]=draft[f];normalizeLocFields(d);restylePlot(d);}
+  for(const d of DATA){Object.assign(d,cloudStaticBase.get(d.cad));if(r.overrides[d.cad])Object.assign(d,r.overrides[d.cad]);cloudBaseline.set(d.cad,{...d});const draft=sessionPatches.get(d.cad);if(draft)for(const f of patchFields)if(Object.hasOwn(draft,f))d[f]=draft[f];normalizeLocFields(d);restylePlot(d);}
   syncVillages();apply();refreshOpenPopups();
  }catch(e){document.getElementById('editStatus').textContent='Серверные данные не загружены. '+e.message;}
 }
