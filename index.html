@@ -244,14 +244,14 @@ button.cadCopy{width:38px;min-width:38px;min-height:36px;padding:4px;border:0;ba
     </label>
     <div class="actions">
       <button type="button" class="primary" id="editApply">Применить</button>
-      <button type="button" id="editPatch">Скачать patch</button>
+      <button type="button" id="editPatch">Скачать патч сессии (0)</button>
       <a class="btn" id="editTopnlab" href="#" target="_blank" rel="noopener" hidden>Карточка CRM</a>
     </div>
   </div>
 </div>
 <dialog id="compareDialog" aria-labelledby="compareTitle"><header><h2 id="compareTitle">Сравнение объектов</h2><button type="button" class="action" id="compareCopy" disabled>Копировать</button><button type="button" class="action" id="closeCompare">Закрыть</button></header><div class="compareScroll"><table><thead><tr><th>Кадастр</th><th>Населённый пункт</th><th>Земля, сот.</th><th>Цена, ₽</th><th>₽/сот.</th><th>Топнлаб</th><th>Действия</th></tr></thead><tbody id="compareBody"></tbody></table></div><div id="compareNote"></div></dialog>
-<script src="data/objects.js?v=202611181340"></script>
-<script src="data/grid/index.js?v=202611181340"></script>
+<script src="data/objects.js?v=202611181342"></script>
+<script src="data/grid/index.js?v=202611181342"></script>
 <script>
 const THEMES = {};
 // Theme: обычная. A theme is one object in THEMES; every file in themes\ is inlined by build.ps1.
@@ -349,6 +349,13 @@ THEMES.kiberpank = {
 
 // Site build: objects come from data/objects.js (window.OBJECTS); single-file build inlines them here.
 const DATA = window.OBJECTS || [];
+const SESSION_PATCH_KEY="mapSessionPatchesV2";
+const sessionPatches=new Map();
+const patchFields=["id","price","vill","sheet","kind","title","agent","src","avito"];
+try{
+  const saved=JSON.parse(sessionStorage.getItem(SESSION_PATCH_KEY)||"[]");
+  if(Array.isArray(saved))for(const p of saved){const d=DATA.find(d=>d.cad===p.cad);if(!d)continue;for(const field of patchFields)if(Object.hasOwn(p,field))d[field]=p[field];sessionPatches.set(p.cad,p);}
+}catch(e){}
 const selectedCads = new Set();
 let visibleObjects = [], onlySelected = false, suppressPlotClickUntil = 0;
 let objectPopup = null, popupObject = null, objectDetailsExpanded = false;
@@ -364,7 +371,7 @@ for (const d of DATA) {
 }
 const NEIGH = [];
 const BUILT = "18.11.2026";
-const POS_OF = {"Трудовое":"Трудовское","Денисовка":"Трудовское","Лазурное":"г.о. Алушта","Строгановка":"Трудовское","Розовый":"г.о. Алушта","Обрыв":"Перовское","Винницкое":"Николаевское","Камышинка":"Чистенское","Нижнее":"г.о. Алушта","Ферсманово":"Добровское","Урожайное":"Трудовское","Семидворье":"г.о. Алушта","Акрополис":"Трудовское","Каштановое":"Перовское","Пушкино":"г.о. Алушта","Айкаван":"Трудовское","Пионерское":"Добровское","Перевальное":"Добровское","Малый Маяк":"г.о. Алушта","Ана-Юрт":"Трудовское","Петропавловка":"Добровское","Новозбурьевка":"Чистенское","Запрудное":"г.о. Алушта","Дмитрово":"Донское","Андрусово":"Добровское","Лазаревка":"Трудовское","Нижнее Запрудное":"г.о. Алушта","Тепловка":"Николаевское","Трудолюбово":"Чистенское","Лучистое":"г.о. Алушта","Партенит":"г.о. Алушта","Мирное":"Мирновское","Константиновка":"Перовское","Клёновка":"Донское","Краснолесье":"Добровское","Украинка":"Перовское","Алушта":"г.о. Алушта","Верхняя Кутузовка":"г.о. Алушта","Лавровое":"г.о. Алушта","Виноградное":"г.о. Алушта","Утёс":"г.о. Алушта","Клиновка":"Перовское","Перово":"Перовское","Молодежное":"Молодежненское","Малореченское":"г.о. Алушта","Чайка":"г.о. Алушта","Генеральское":"г.о. Алушта","Дубки":"Перовское","Дружное":"Трудовское","Лаванда":"г.о. Алушта","Лозовое":"Добровское","Николаевка":"Николаевское","Изобильное":"г.о. Алушта","Заречное":"Добровское","Молочное":"Перовское","Нижняя Кутузовка":"г.о. Алушта","Красновка":"Мазанское","Трехпрудное":"Чистенское","Солнечное":"Молодежненское","Рыбачье":"г.о. Алушта","Чистенькое":"Чистенское","Мраморное":"Добровское","Доброе":"Добровское","Мазанка":"Мазанское","Чайковское":"Добровское","Кипарисное":"г.о. Алушта","Ключи":"Перовское","Солнечногорское":"г.о. Алушта","Привольное":"Добровское","Скворцово":"Скворцовское","Белоглинка":"Мирновское","Фонтаны":"Чистенское","Веселое":"Перовское","Левадки":"Чистенское","Партизанское":"Перовское","Ивановка":"Трудовское"};
+const POS_OF = {"Привольное":"Добровское","Петропавловка":"Добровское","Пушкино":"г.о. Алушта","Скворцово":"Скворцовское","Нижнее Запрудное":"г.о. Алушта","Строгановка":"Трудовское","Камышинка":"Чистенское","Ана-Юрт":"Трудовское","Каштановое":"Перовское","Мирное":"Мирновское","Левадки":"Чистенское","Виноградное":"г.о. Алушта","Заречное":"Добровское","Николаевка":"Николаевское","Новозбурьевка":"Чистенское","Солнечногорское":"г.о. Алушта","Чистенькое":"Чистенское","Дружное":"Трудовское","Запрудное":"г.о. Алушта","Рыбачье":"г.о. Алушта","Константиновка":"Перовское","Ивановка":"Трудовское","Перевальное":"Добровское","Дмитрово":"Донское","Чайка":"г.о. Алушта","Малореченское":"г.о. Алушта","Розовый":"г.о. Алушта","Изобильное":"г.о. Алушта","Красновка":"Мазанское","Урожайное":"Трудовское","Акрополис":"Трудовское","Лазаревка":"Трудовское","Украинка":"Перовское","Кипарисное":"г.о. Алушта","Молочное":"Перовское","Тепловка":"Николаевское","Веселое":"Перовское","Партизанское":"Перовское","Генеральское":"г.о. Алушта","Алушта":"г.о. Алушта","Семидворье":"г.о. Алушта","Обрыв":"Перовское","Верхняя Кутузовка":"г.о. Алушта","Трудолюбово":"Чистенское","Краснолесье":"Добровское","Пионерское":"Добровское","Лозовое":"Добровское","Ключи":"Перовское","Денисовка":"Трудовское","Трудовое":"Трудовское","Лавровое":"г.о. Алушта","Утёс":"г.о. Алушта","Лаванда":"г.о. Алушта","Винницкое":"Николаевское","Молодежное":"Молодежненское","Ферсманово":"Добровское","Дубки":"Перовское","Перово":"Перовское","Клёновка":"Донское","Солнечное":"Молодежненское","Малый Маяк":"г.о. Алушта","Трехпрудное":"Чистенское","Лазурное":"г.о. Алушта","Нижняя Кутузовка":"г.о. Алушта","Мраморное":"Добровское","Чайковское":"Добровское","Белоглинка":"Мирновское","Фонтаны":"Чистенское","Клиновка":"Перовское","Партенит":"г.о. Алушта","Нижнее":"г.о. Алушта","Доброе":"Добровское","Лучистое":"г.о. Алушта","Мазанка":"Мазанское","Айкаван":"Трудовское","Андрусово":"Добровское"};
 const COLORS = {"Трудовское":"#e11d48","Перовское":"#2563eb","Мирновское":"#16a34a","Чистенское":"#d97706","Добровское":"#7c3aed"};
 const PALETTE = ["#0891b2","#db2777","#65a30d","#ea580c","#4f46e5","#0d9488","#b45309","#9333ea","#dc2626","#0284c7","#ca8a04","#059669"];
 const col = s => { if (COLORS[s]) return COLORS[s]; let h = 0; for (const ch of String(s||"")) h = (h*31 + ch.charCodeAt(0)) >>> 0; return PALETTE[h % PALETTE.length]; };
@@ -567,6 +574,9 @@ const EDIT_UNLOCK_KEY = "mapEditorUnlock";
 const EDIT_AUTO_KEY = "mapEditorAutoPick";
 let editorObj = null;
 let editorOpen = false;
+let editorDirty = false;
+function updateSessionPatchButton(){document.getElementById("editPatch").textContent="Скачать патч сессии ("+sessionPatches.size+")";}
+function saveSessionPatch(p){sessionPatches.set(p.cad,p);try{sessionStorage.setItem(SESSION_PATCH_KEY,JSON.stringify([...sessionPatches.values()]));}catch(e){document.getElementById("editStatus").textContent="Память браузера недоступна: скачайте патч перед перезагрузкой.";}updateSessionPatchButton();}
 try {
   if (sessionStorage.getItem(EDIT_UNLOCK_KEY) === "1" && localStorage.getItem(EDIT_UNLOCK_KEY) !== "1") {
     localStorage.setItem(EDIT_UNLOCK_KEY, "1");
@@ -612,6 +622,7 @@ function showEditorPanel(){
 }
 function pickObject(d){
   if (!d) return;
+  if(editorOpen&&editorDirty&&editorObj&&editorObj.cad!==d.cad)applyObjectEditor();
   editorObj = d;
   document.querySelectorAll("#list li.sel").forEach(li => li.classList.remove("sel"));
   const li = document.querySelector(`#list li[data-c="${CSS.escape(d.cad)}"]`);
@@ -641,6 +652,7 @@ function editPatchFromForm(){
   };
 }
 function fillEditorForm(d){
+  editorDirty=false;
   document.getElementById("edCad").value = d.cad || "";
   document.getElementById("edId").value = d.id || "";
   document.getElementById("edPrice").value = d.price ?? "";
@@ -668,6 +680,7 @@ function openObjectEditor(){
   showEditorPanel();
 }
 function closeObjectEditor(){
+  if(editorOpen&&editorDirty)applyObjectEditor();
   const panel = document.getElementById("editPanel");
   panel.hidden = true;
   panel.setAttribute("aria-hidden", "true");
@@ -689,23 +702,27 @@ function applyObjectEditor(){
   editorObj.avito = p.avito;
   p.vill = editorObj.vill || "";
   p.sheet = editorObj.sheet || "";
-  try { localStorage.setItem("mapEdit:" + p.cad, JSON.stringify(p)); } catch (e) {}
+  saveSessionPatch(p);
+  editorDirty=false;
   restylePlot(editorObj);
   apply();
   refreshOpenPopups();
-  document.getElementById("editStatus").textContent = "Применено в сессии. Скачайте patch для allobjs.";
+  document.getElementById("editStatus").textContent = "Сохранено в патч сессии. Объектов: "+sessionPatches.size+". Для обновления сайта передайте общий файл.";
 }
 function downloadEditPatch(){
   if (!editorUnlocked()) return;
-  const p = editPatchFromForm();
-  if (!p.cad) return;
-  const blob = new Blob([JSON.stringify(p, null, 2)], {type:"application/json"});
+  if(editorDirty)applyObjectEditor();
+  if(!sessionPatches.size){document.getElementById("editStatus").textContent="В сессии пока нет сохранённых изменений.";return;}
+  const payload={version:2,createdAt:new Date().toISOString(),patches:[...sessionPatches.values()]};
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = "patch_" + p.cad.replace(/:/g, "-") + ".json";
+  a.download = "patch_session_"+new Date().toISOString().replace(/[:.]/g,"-")+"_"+sessionPatches.size+".json";
   a.click();
-  URL.revokeObjectURL(a.href);
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
+document.getElementById("editForm").addEventListener("input",()=>{if(editorObj){editorDirty=true;document.getElementById("editStatus").textContent="Есть правки: будут включены при применении, смене объекта, закрытии редактора или скачивании.";}});
+updateSessionPatchButton();
 document.getElementById("editApply").addEventListener("click", applyObjectEditor);
 document.getElementById("editPatch").addEventListener("click", downloadEditPatch);
 document.getElementById("editClose").addEventListener("click", closeObjectEditor);
