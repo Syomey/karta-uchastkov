@@ -14,4 +14,5 @@ const obj=snaps.get(share.id).objects[0];assert.equal(obj.agent,undefined);asser
 await call('save',{revision:2,patches:[{cad:'90:1',price:400}]});assert.equal(obj.price,200);
 await call('undo',{revision:3,id:s.history[0].id});assert.equal(s.overrides['90:1'].price,200);
 await call('revoke',{revision:4,id:share.id});assert.equal((await call('view',null,'',{id:share.id})).code,410);s.shares[0].revoked=false;s.shares[0].expiresAt='2020-01-01';assert.equal((await call('view',null,'',{id:share.id})).code,410);
+s.additions={'90:2':{cad:'90:2',id:'2'}};s.history.unshift({id:'import-test',before:structuredClone(s.overrides),beforeAdditions:{},count:1});const previousRevision=s.revision;await call('undo',{revision:previousRevision,id:'import-test'});assert.deepEqual(s.additions,{});await call('undo',{revision:s.revision,id:s.history[0].id});assert(s.additions['90:2']);
 console.log('PASS owner permissions, validation, conflicts, sanitized frozen snapshots, ten-day expiry, undo, revocation');
