@@ -48,7 +48,8 @@
   ],
   "functions": {
     "api/*.mjs": {
-      "includeFiles": "data/objects.js"
+      "includeFiles": "data/*.{js,json}",
+      "maxDuration": 60
     }
   }
 }

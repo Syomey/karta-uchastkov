@@ -10,12 +10,13 @@ export default async function handler(req,res){
  }
  if(!authorized(req))return res.status(401).json({error:'Требуется вход в карту.'});
  const owner=authorized(req,true)&&!!process.env.EDITOR_PASSWORD&&req.headers['x-editor-password']===process.env.EDITOR_PASSWORD;
+ if(action==='objects'&&req.method==='GET'){const {data:s}=await state();res.setHeader('Content-Type','application/javascript; charset=utf-8');return res.send('window.OBJECTS='+JSON.stringify(merged(s))+';');}
  if(action==='owner')return res.status(owner?200:403).json({owner});
  const r=await state(),s=r.data;
  if(req.method==='GET'){
   if(action==='load')return res.json({revision:s.revision,overrides:s.overrides});
   if(!owner)return res.status(403).json({error:'Доступно только владельцу.'});
-  return res.json({revision:s.revision,history:s.history.map(({before,...h})=>h),shares:s.shares});
+  return res.json({revision:s.revision,history:s.history.map(({before,beforeAdditions,...h})=>h),shares:s.shares});
  }
  if(req.method!=='POST')return res.status(405).end();
  if(!owner||!sameOrigin(req))return res.status(403).json({error:'Доступно только владельцу.'});
@@ -37,7 +38,7 @@ export default async function handler(req,res){
   if(count)s.history.unshift({id:token(),at:now,count,before});else return res.json({revision:s.revision});
  }else if(action==='undo'){
   const last=s.history[0];if(!last||last.id!==b.id)return res.status(409).json({error:'Можно отменить только последнее изменение.'});
-  const before=structuredClone(s.overrides);s.overrides=last.before;s.history.unshift({id:token(),at:now,count:Object.keys(before).length,before,label:'Отмена последнего изменения'});
+  const before=structuredClone(s.overrides),beforeAdditions=structuredClone(s.additions||{});s.overrides=last.before;if(last.beforeAdditions)s.additions=last.beforeAdditions;s.history.unshift({id:token(),at:now,count:last.count,before,beforeAdditions,label:'Отмена последнего изменения'});
  }else if(action==='share'){
   if(!Array.isArray(b.cads)||!b.cads.length||b.cads.length>1500)return res.status(400).json({error:'Выберите объекты.'});
   const objects=new Map(merged(s).map(d=>[d.cad,d]));if(b.cads.some(c=>!objects.has(c)))return res.status(400).json({error:'Неизвестный кадастр.'});

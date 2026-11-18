@@ -257,13 +257,14 @@ button.cadCopy{width:38px;min-width:38px;min-height:36px;padding:4px;border:0;ba
     </label>
     <div class="actions">
       <button type="button" class="primary" id="editApply">Применить</button>
-      <button type="button" id="cloudSave">Сохранить на сайте</button><button type="button" id="cloudHistory">История и ссылки</button><button type="button" id="editPatch">Скачать патч сессии (0)</button>
+      <button type="button" id="cloudSave">Сохранить на сайте</button><button type="button" id="cloudHistory">История и ссылки</button><button type="button" id="topnlabImport">Загрузить новые из Топнлаба</button><button type="button" id="topnlabReport">Отчёт загрузки</button><button type="button" id="editPatch">Скачать патч сессии (0)</button>
       <a class="btn" id="editTopnlab" href="#" target="_blank" rel="noopener" hidden>Карточка CRM</a>
     </div>
   </div>
 </div>
 <dialog id="compareDialog" aria-labelledby="compareTitle"><header><h2 id="compareTitle">Сравнение объектов</h2><button type="button" class="action" id="resetCompareFilters">Сбросить фильтры</button><button type="button" class="action" id="compareCopy" disabled>Копировать</button><button type="button" class="action" id="closeCompare">Закрыть</button></header><div id="compareFilterPanel" hidden role="region" aria-label="Фильтр столбца"></div><div class="compareScroll"><table><thead><tr><th><button type="button" class="column-filter" data-column="cad" aria-label="Фильтр и сортировка: Кадастр" aria-expanded="false" aria-pressed="false">Кадастр<span class="filter-arrow" aria-hidden="true">▼</span></button></th><th><button type="button" class="column-filter" data-column="vill" aria-label="Фильтр и сортировка: Населённый пункт" aria-expanded="false" aria-pressed="false">Населённый пункт<span class="filter-arrow" aria-hidden="true">▼</span></button></th><th><button type="button" class="column-filter" data-column="area" aria-label="Фильтр и сортировка: Земля, сот." aria-expanded="false" aria-pressed="false">Земля, сот.<span class="filter-arrow" aria-hidden="true">▼</span></button></th><th><button type="button" class="column-filter" data-column="price" aria-label="Фильтр и сортировка: Цена, ₽" aria-expanded="false" aria-pressed="false">Цена, ₽<span class="filter-arrow" aria-hidden="true">▼</span></button></th><th><button type="button" class="column-filter" data-column="unit" aria-label="Фильтр и сортировка: ₽/сот." aria-expanded="false" aria-pressed="false">₽/сот.<span class="filter-arrow" aria-hidden="true">▼</span></button></th><th><button type="button" class="column-filter" data-column="id" aria-label="Фильтр и сортировка: Топнлаб" aria-expanded="false" aria-pressed="false">Топнлаб<span class="filter-arrow" aria-hidden="true">▼</span></button></th><th>Действия</th></tr></thead><tbody id="compareBody"></tbody></table></div><div id="compareNote"></div></dialog>
 <!--SITE_SCRIPTS-->
+<script src="/api/registry?action=objects"></script>
 <script>
 const THEMES = {};
 /*THEMES*/
@@ -571,7 +572,7 @@ function showEditorPanel(){
   panel.setAttribute("aria-hidden", "false");
   editorOpen = true;
   syncEditAutoCheckbox();
-  document.getElementById("editStatus").textContent = "";
+  document.getElementById("editStatus").textContent = sessionStorage.getItem("topnlabLastReport")||"";
   document.getElementById("edId").focus();
 }
 function pickObject(d){
@@ -898,7 +899,7 @@ function popup(d){
     if (d.avito) links += `${links ? " · " : ""}<a href="${esc(d.avito)}" target="_blank" rel="noopener">Авито</a>`;
     else links += `${links ? " · " : ""}<span style="color:#6b7280">ссылки на Авито нет</span>`;
   }
-  return `<div class="pp"><b>${esc(d.cad)}</b><button class="cadCopy" type="button" data-copy-cad="${esc(d.cad)}" aria-label="Копировать кадастровый номер" title="Копировать кадастр">⧉</button>${d.point ? " <span style=\"color:#b45309\">границы не установлены</span>" : ""}<table>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[2] ? r[1] : esc(r[1])}</td></tr>`).join("")}</table><div style="margin-top:6px">${links}</div></div>`;
+  return `<div class="pp"><b>${esc(d.cad)}</b><button class="cadCopy" type="button" data-copy-cad="${esc(d.cad)}" aria-label="Копировать кадастровый номер" title="Копировать кадастр">⧉</button>${d.point ? " <span style=\"color:#b45309\">"+(d.geometrySource==="topnlab"?"точка из Топнлаба, границы не загружены":"границы не установлены")+"</span>" : ""}<table>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[2] ? r[1] : esc(r[1])}</td></tr>`).join("")}</table><div style="margin-top:6px">${links}</div></div>`;
 }
 
 const layers = new Map();
@@ -1258,6 +1259,20 @@ historyDialog.onclick=async e=>{const b=e.target.closest('button');if(!b)return;
  try{if(b.dataset.undo){if(sessionPatches.size||editorDirty)throw Error('Сначала сохраните текущие правки или скачайте патч.');if(!confirm('Отменить последнее серверное изменение?'))return;const r=await cloudRequest('undo',{id:b.dataset.undo});cloudRevision=r.revision;location.reload();}
  if(b.dataset.revoke){const r=await cloudRequest('revoke',{id:b.dataset.revoke});cloudRevision=r.revision;historyDialog.close();alert('Ссылка отключена.');}}
  catch(e){alert(e.message);}};
+
+let topnlabRunning=false;
+async function topnlabRequest(action,post=false){const r=await fetch('/api/topnlab?action='+action,{method:post?'POST':'GET',cache:'no-store',headers:{'X-Editor-Password':cloudPassword}});const data=await r.json();if(!r.ok)throw Error(data.error||'Загрузку можно продолжить.');return data;}
+function syncProgress(s){const phases={preparing:'Подготовка списка',scan:'Проверка новых карточек',geometry:'Загрузка границ',commit:'Добавление на карту',done:'Готово'};document.getElementById('editStatus').textContent=(phases[s.phase]||s.phase)+': '+s.processed+' / '+s.total+(s.phase==='geometry'?' · границы '+s.geometryProcessed+' / '+s.geometryTotal:'')+' · найдено команды: '+s.counts.team+' · без кадастра: '+s.counts.noCad+' · совпадения: '+s.counts.conflicts;}
+document.getElementById('topnlabImport').onclick=async()=>{
+ if(topnlabRunning)return;
+ try{if(!await saveCloud())return;topnlabRunning=true;document.getElementById('topnlabImport').disabled=true;document.querySelectorAll('#editForm input,#cloudSave,#editApply').forEach(e=>e.disabled=true);
+ let s=await topnlabRequest('start',true);syncProgress(s);
+ while(s.phase!=='done'){await new Promise(r=>setTimeout(r,Math.max(1000,Math.min(s.waitMs||0,6500))));s=await topnlabRequest('step',true);syncProgress(s);}
+ const report='Добавлено: '+s.counts.added+' объектов. Без кадастра участка: '+s.counts.noCad+'. Совпадения для проверки: '+s.counts.conflicts+'. Границы не загрузились: '+s.counts.geometryMissing+'. Подробности — в кнопке «Отчёт загрузки».';sessionStorage.setItem('topnlabLastReport',report);alert(report);location.reload();
+ }catch(e){document.getElementById('editStatus').textContent=e.message+' Нажмите «Загрузить новые из Топнлаба», чтобы продолжить.';}
+ finally{topnlabRunning=false;document.getElementById('topnlabImport').disabled=false;document.querySelectorAll('#editForm input,#cloudSave,#editApply').forEach(e=>e.disabled=false);}
+};
+document.getElementById('topnlabReport').onclick=async()=>{try{if(!await editorAskUnlock())return;const data=await topnlabRequest('report');const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='topnlab_import_report.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){alert(e.message);}};
 loadCloud();
 </script>
 </body>
