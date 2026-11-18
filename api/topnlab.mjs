@@ -2,8 +2,8 @@ import {put} from '@vercel/blob';
 import {authorized,sameOrigin,state,write,merged,read,token} from '../lib/store.mjs';
 import {scopeUsers,cache,inspectEntities,summary,apiCall,getGeometry,wait} from '../lib/topnlab.mjs';
 const PATH='sync/topnlab-job.json';
-async function saveJob(job,etag){return put(PATH,JSON.stringify(job),{access:'private',addRandomSuffix:false,allowOverwrite:!!etag,...(etag?{ifMatch:etag}:{})});}
-async function checkpoint(job){await put('sync/topnlab-checkpoint.json',JSON.stringify({seenIds:[...new Set(job.seenIds)],finishedAt:job.finishedAt}),{access:'private',addRandomSuffix:false,allowOverwrite:true});}
+async function saveJob(job,etag){return put(PATH,JSON.stringify(job),{access:'private',abortSignal:AbortSignal.timeout(10000),addRandomSuffix:false,allowOverwrite:!!etag,...(etag?{ifMatch:etag}:{})});}
+async function checkpoint(job){await put('sync/topnlab-checkpoint.json',JSON.stringify({seenIds:[...new Set(job.seenIds)],finishedAt:job.finishedAt}),{access:'private',abortSignal:AbortSignal.timeout(10000),addRandomSuffix:false,allowOverwrite:true});}
 export default async function handler(req,res){res.setHeader('Cache-Control','private, no-store');
  if(!authorized(req,true)||!process.env.EDITOR_PASSWORD||req.headers['x-editor-password']!==process.env.EDITOR_PASSWORD||!sameOrigin(req))return res.status(403).json({error:'Доступно только владельцу в редакторе.'});
  const action=req.query.action||'status';let job,lease;
