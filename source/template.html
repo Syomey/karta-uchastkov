@@ -560,8 +560,8 @@ function syncEditAutoCheckbox(){
 let cloudPassword='';
 async function editorAskUnlock(){
  if(cloudPassword)return true;
- const password=prompt('Пароль владельца (пароль входа в карту):');if(password===null)return false;
- try{const r=await fetch('/api/registry?action=owner',{headers:{'X-Editor-Password':password},cache:'no-store'});if(!r.ok)throw Error('Вход разрешён только владельцу с его паролем карты.');cloudPassword=password;localStorage.setItem(EDIT_UNLOCK_KEY,'1');return true;}catch(e){alert(e.message);return false;}
+ const password=prompt('Код редактора:');if(password===null)return false;
+ try{const r=await fetch('/api/registry?action=owner',{headers:{'X-Editor-Password':password},cache:'no-store'});if(!r.ok)throw Error('Неверный код редактора или вход выполнен не от владельца.');cloudPassword=password;localStorage.setItem(EDIT_UNLOCK_KEY,'1');return true;}catch(e){alert(e.message);return false;}
 }
 function showEditorPanel(){
   if (!editorObj) return;

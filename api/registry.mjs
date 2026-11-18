@@ -9,7 +9,7 @@ export default async function handler(req,res){
   const r=await read('shares/'+id+'.json');return r?res.json(r.data):res.status(410).json({error:'Подборка недоступна.'});
  }
  if(!authorized(req))return res.status(401).json({error:'Требуется вход в карту.'});
- const owner=authorized(req,true)&&req.headers['x-editor-password']===(process.env.MAP_USERS||'').split(',')[0].trim().split(':').slice(1).join(':');
+ const owner=authorized(req,true)&&!!process.env.EDITOR_PASSWORD&&req.headers['x-editor-password']===process.env.EDITOR_PASSWORD;
  if(action==='owner')return res.status(owner?200:403).json({owner});
  const r=await state(),s=r.data;
  if(req.method==='GET'){
