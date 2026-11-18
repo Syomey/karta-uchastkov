@@ -27,7 +27,7 @@ for(const order of ['price-asc','price-desc','area-asc','area-desc','unit-asc','
   const rows=[{...d,cad:'missing',price:null,area:null},{...d,cad:'small',price:1e6,area:500},{...d,cad:'large',price:4e6,area:800}];
   context.sortObjects(rows,order);assert.equal(rows[2].cad,'missing');assert.equal(rows[0].cad,order.endsWith('desc')?'large':'small');
 }
-context.toggleSelected('a');assert(selected.has('a'));context.toggleSelected('a');assert(!selected.has('a'));
+context.toggleSelected('a');assert(selected.has('a'));assert(context.onlySelected);context.toggleSelected('a');assert(!selected.has('a'));assert(!context.onlySelected);
 selected.add('hidden');context.visibleObjects=[d];context.updateSelectionUI();assert(element('selectionCount').textContent.includes('скрыто фильтрами: 1'));
 context.DATA=[{...d,id:'123',vill:'Доброе'},{...d,cad:'hidden',kind:'дом'}];selected.add('a');context.renderComparison();assert(element('compareBody').innerHTML.includes('object-card/123'));assert(element('compareBody').innerHTML.includes('500000'));
 const entry={d,lyr:{eachLayer(fn){fn({setStyle(s){this.style=s;entry.polygonStyle=s}})}},m:{setStyle(s){entry.markerStyle=s}}};context.stylePlot(entry);assert.equal(entry.polygonStyle.color,'#f59e0b');assert.equal(entry.polygonStyle.fillColor,'#14532d');selected.delete('a');context.stylePlot(entry);assert.equal(entry.polygonStyle.weight,2);assert.equal(entry.markerStyle.radius,5);
