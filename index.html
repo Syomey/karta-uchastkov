@@ -219,7 +219,7 @@ button.cadCopy{width:38px;min-width:38px;min-height:36px;padding:4px;border:0;ba
     </header>
     <div id="selectionBar">
       <div id="selectionCount" role="status" aria-live="polite">Выбрано: 0</div>
-      <div class="row"><button class="action" id="onlySelected" type="button" aria-pressed="false">Только выбранные</button><button class="action" id="compareSelected" type="button" disabled>Сравнить</button><button class="action" id="copySelected" type="button" disabled>Копировать</button><button class="action" id="clearSelected" type="button" disabled>Снять выделение</button></div>
+      <div class="row"><button class="action" id="onlySelected" type="button" aria-pressed="false">Только выбранные</button><button class="action" id="shareSelected" type="button">Поделиться</button><button class="action" id="compareSelected" type="button" disabled>Сравнить</button><button class="action" id="copySelected" type="button" disabled>Копировать</button><button class="action" id="clearSelected" type="button" disabled>Снять выделение</button></div>
       <div id="copyStatus" role="status" aria-live="polite"></div>
       <div id="selectionHelp" style="margin-top:5px;color:var(--muted)">Shift + клик — выбрать; Shift + перетаскивание — рамка. Также можно отметить флажки.</div>
     </div>
@@ -257,14 +257,14 @@ button.cadCopy{width:38px;min-width:38px;min-height:36px;padding:4px;border:0;ba
     </label>
     <div class="actions">
       <button type="button" class="primary" id="editApply">Применить</button>
-      <button type="button" id="editPatch">Скачать патч сессии (0)</button>
+      <button type="button" id="cloudSave">Сохранить на сайте</button><button type="button" id="cloudHistory">История и ссылки</button><button type="button" id="editPatch">Скачать патч сессии (0)</button>
       <a class="btn" id="editTopnlab" href="#" target="_blank" rel="noopener" hidden>Карточка CRM</a>
     </div>
   </div>
 </div>
 <dialog id="compareDialog" aria-labelledby="compareTitle"><header><h2 id="compareTitle">Сравнение объектов</h2><button type="button" class="action" id="resetCompareFilters">Сбросить фильтры</button><button type="button" class="action" id="compareCopy" disabled>Копировать</button><button type="button" class="action" id="closeCompare">Закрыть</button></header><div id="compareFilterPanel" hidden role="region" aria-label="Фильтр столбца"></div><div class="compareScroll"><table><thead><tr><th><button type="button" class="column-filter" data-column="cad" aria-label="Фильтр и сортировка: Кадастр" aria-expanded="false" aria-pressed="false">Кадастр<span class="filter-arrow" aria-hidden="true">▼</span></button></th><th><button type="button" class="column-filter" data-column="vill" aria-label="Фильтр и сортировка: Населённый пункт" aria-expanded="false" aria-pressed="false">Населённый пункт<span class="filter-arrow" aria-hidden="true">▼</span></button></th><th><button type="button" class="column-filter" data-column="area" aria-label="Фильтр и сортировка: Земля, сот." aria-expanded="false" aria-pressed="false">Земля, сот.<span class="filter-arrow" aria-hidden="true">▼</span></button></th><th><button type="button" class="column-filter" data-column="price" aria-label="Фильтр и сортировка: Цена, ₽" aria-expanded="false" aria-pressed="false">Цена, ₽<span class="filter-arrow" aria-hidden="true">▼</span></button></th><th><button type="button" class="column-filter" data-column="unit" aria-label="Фильтр и сортировка: ₽/сот." aria-expanded="false" aria-pressed="false">₽/сот.<span class="filter-arrow" aria-hidden="true">▼</span></button></th><th><button type="button" class="column-filter" data-column="id" aria-label="Фильтр и сортировка: Топнлаб" aria-expanded="false" aria-pressed="false">Топнлаб<span class="filter-arrow" aria-hidden="true">▼</span></button></th><th>Действия</th></tr></thead><tbody id="compareBody"></tbody></table></div><div id="compareNote"></div></dialog>
-<script src="data/objects.js?v=202611181422"></script>
-<script src="data/grid/index.js?v=202611181422"></script>
+<script src="data/objects.js?v=202611181717"></script>
+<script src="data/grid/index.js?v=202611181717"></script>
 <script>
 const THEMES = {};
 // Theme: обычная. A theme is one object in THEMES; every file in themes\ is inlined by build.ps1.
@@ -384,7 +384,7 @@ for (const d of DATA) {
 }
 const NEIGH = [];
 const BUILT = "18.11.2026";
-const POS_OF = {"Рыбачье":"г.о. Алушта","Заречное":"Добровское","Дмитрово":"Донское","Дружное":"Трудовское","Тепловка":"Николаевское","Доброе":"Добровское","Нижнее":"г.о. Алушта","Каштановое":"Перовское","Петропавловка":"Добровское","Чайковское":"Добровское","Скворцово":"Скворцовское","Молодежное":"Молодежненское","Малый Маяк":"г.о. Алушта","Акрополис":"Трудовское","Лазурное":"г.о. Алушта","Генеральское":"г.о. Алушта","Мраморное":"Добровское","Константиновка":"Перовское","Клиновка":"Перовское","Привольное":"Добровское","Малореченское":"г.о. Алушта","Красновка":"Мазанское","Трудолюбово":"Чистенское","Урожайное":"Трудовское","Обрыв":"Перовское","Ана-Юрт":"Трудовское","Левадки":"Чистенское","Солнечногорское":"г.о. Алушта","Перово":"Перовское","Фонтаны":"Чистенское","Лозовое":"Добровское","Семидворье":"г.о. Алушта","Мазанка":"Мазанское","Белоглинка":"Мирновское","Винницкое":"Николаевское","Алушта":"г.о. Алушта","Новозбурьевка":"Чистенское","Солнечное":"Молодежненское","Мирное":"Мирновское","Кипарисное":"г.о. Алушта","Перевальное":"Добровское","Денисовка":"Трудовское","Ферсманово":"Добровское","Ивановка":"Трудовское","Розовый":"г.о. Алушта","Партизанское":"Перовское","Пушкино":"г.о. Алушта","Андрусово":"Добровское","Верхняя Кутузовка":"г.о. Алушта","Камышинка":"Чистенское","Запрудное":"г.о. Алушта","Трудовое":"Трудовское","Лучистое":"г.о. Алушта","Лазаревка":"Трудовское","Молочное":"Перовское","Николаевка":"Николаевское","Строгановка":"Трудовское","Трехпрудное":"Чистенское","Нижняя Кутузовка":"г.о. Алушта","Партенит":"г.о. Алушта","Чайка":"г.о. Алушта","Утёс":"г.о. Алушта","Ключи":"Перовское","Клёновка":"Донское","Дубки":"Перовское","Нижнее Запрудное":"г.о. Алушта","Пионерское":"Добровское","Краснолесье":"Добровское","Лаванда":"г.о. Алушта","Виноградное":"г.о. Алушта","Айкаван":"Трудовское","Лавровое":"г.о. Алушта","Веселое":"Перовское","Изобильное":"г.о. Алушта","Украинка":"Перовское","Чистенькое":"Чистенское"};
+const POS_OF = {"Лазурное":"г.о. Алушта","Перевальное":"Добровское","Фонтаны":"Чистенское","Ключи":"Перовское","Денисовка":"Трудовское","Ана-Юрт":"Трудовское","Дружное":"Трудовское","Левадки":"Чистенское","Семидворье":"г.о. Алушта","Алушта":"г.о. Алушта","Доброе":"Добровское","Лавровое":"г.о. Алушта","Лазаревка":"Трудовское","Лаванда":"г.о. Алушта","Нижнее":"г.о. Алушта","Рыбачье":"г.о. Алушта","Розовый":"г.о. Алушта","Каштановое":"Перовское","Дубки":"Перовское","Константиновка":"Перовское","Мраморное":"Добровское","Трехпрудное":"Чистенское","Белоглинка":"Мирновское","Запрудное":"г.о. Алушта","Тепловка":"Николаевское","Молодежное":"Молодежненское","Заречное":"Добровское","Привольное":"Добровское","Обрыв":"Перовское","Трудовое":"Трудовское","Пионерское":"Добровское","Партенит":"г.о. Алушта","Скворцово":"Скворцовское","Клёновка":"Донское","Веселое":"Перовское","Андрусово":"Добровское","Кипарисное":"г.о. Алушта","Украинка":"Перовское","Новозбурьевка":"Чистенское","Перово":"Перовское","Молочное":"Перовское","Солнечногорское":"г.о. Алушта","Лозовое":"Добровское","Виноградное":"г.о. Алушта","Камышинка":"Чистенское","Партизанское":"Перовское","Лучистое":"г.о. Алушта","Утёс":"г.о. Алушта","Нижнее Запрудное":"г.о. Алушта","Солнечное":"Молодежненское","Дмитрово":"Донское","Пушкино":"г.о. Алушта","Генеральское":"г.о. Алушта","Урожайное":"Трудовское","Петропавловка":"Добровское","Трудолюбово":"Чистенское","Чайка":"г.о. Алушта","Малореченское":"г.о. Алушта","Николаевка":"Николаевское","Малый Маяк":"г.о. Алушта","Краснолесье":"Добровское","Чайковское":"Добровское","Изобильное":"г.о. Алушта","Верхняя Кутузовка":"г.о. Алушта","Чистенькое":"Чистенское","Ивановка":"Трудовское","Клиновка":"Перовское","Строгановка":"Трудовское","Айкаван":"Трудовское","Мирное":"Мирновское","Акрополис":"Трудовское","Красновка":"Мазанское","Ферсманово":"Добровское","Мазанка":"Мазанское","Винницкое":"Николаевское","Нижняя Кутузовка":"г.о. Алушта"};
 const COLORS = {"Трудовское":"#e11d48","Перовское":"#2563eb","Мирновское":"#16a34a","Чистенское":"#d97706","Добровское":"#7c3aed"};
 const PALETTE = ["#0891b2","#db2777","#65a30d","#ea580c","#4f46e5","#0d9488","#b45309","#9333ea","#dc2626","#0284c7","#ca8a04","#059669"];
 const col = s => { if (COLORS[s]) return COLORS[s]; let h = 0; for (const ch of String(s||"")) h = (h*31 + ch.charCodeAt(0)) >>> 0; return PALETTE[h % PALETTE.length]; };
@@ -632,7 +632,7 @@ let editorObj = null;
 let editorOpen = false;
 let editorDirty = false;
 function updateSessionPatchButton(){document.getElementById("editPatch").textContent="Скачать патч сессии ("+sessionPatches.size+")";}
-function saveSessionPatch(p){sessionPatches.set(p.cad,p);try{sessionStorage.setItem(SESSION_PATCH_KEY,JSON.stringify([...sessionPatches.values()]));}catch(e){document.getElementById("editStatus").textContent="Память браузера недоступна: скачайте патч перед перезагрузкой.";}updateSessionPatchButton();}
+function saveSessionPatch(p){if(!sessionPatches.size && typeof cloudRevision!=="undefined" && cloudRevision!==null)sessionStorage.setItem("cloudDraftRevision",String(cloudRevision));sessionPatches.set(p.cad,p);try{sessionStorage.setItem(SESSION_PATCH_KEY,JSON.stringify([...sessionPatches.values()]));}catch(e){document.getElementById("editStatus").textContent="Память браузера недоступна: скачайте патч перед перезагрузкой.";}updateSessionPatchButton();}
 try {
   if (sessionStorage.getItem(EDIT_UNLOCK_KEY) === "1" && localStorage.getItem(EDIT_UNLOCK_KEY) !== "1") {
     localStorage.setItem(EDIT_UNLOCK_KEY, "1");
@@ -649,21 +649,11 @@ function syncEditAutoCheckbox(){
   const cb = document.getElementById("editAutoPick");
   if (cb) cb.checked = editorAutoPick();
 }
-function editorAskUnlock(){
-  if (editorUnlocked()) return true;
-  const p = window.prompt("Пароль редактора:");
-  if (p == null) return false;
-  if (p !== "table 4") {
-    alert("Неверный пароль.");
-    return false;
-  }
-  try {
-    localStorage.setItem(EDIT_UNLOCK_KEY, "1");
-    if (localStorage.getItem(EDIT_AUTO_KEY) == null) localStorage.setItem(EDIT_AUTO_KEY, "1");
-    sessionStorage.removeItem(EDIT_UNLOCK_KEY);
-  } catch (e) {}
-  syncEditAutoCheckbox();
-  return true;
+let cloudPassword='';
+async function editorAskUnlock(){
+ if(cloudPassword)return true;
+ const password=prompt('Пароль владельца (пароль входа в карту):');if(password===null)return false;
+ try{const r=await fetch('/api/registry?action=owner',{headers:{'X-Editor-Password':password},cache:'no-store'});if(!r.ok)throw Error('Вход разрешён только владельцу с его паролем карты.');cloudPassword=password;localStorage.setItem(EDIT_UNLOCK_KEY,'1');return true;}catch(e){alert(e.message);return false;}
 }
 function showEditorPanel(){
   if (!editorObj) return;
@@ -687,7 +677,7 @@ function pickObject(d){
     fillEditorForm(d);
     document.getElementById("editStatus").textContent = "";
     document.getElementById("edId").focus();
-  } else if (editorAutoPick()) {
+  } else if (editorAutoPick() && cloudPassword) {
     showEditorPanel();
   }
 }
@@ -726,8 +716,8 @@ function fillEditorForm(d){
   if (d.id) { top.hidden = false; top.href = "https://crm.topnlab.ru/object-card/" + encodeURIComponent(d.id); }
   else { top.hidden = true; top.removeAttribute("href"); }
 }
-function openObjectEditor(){
-  if (!editorAskUnlock()) return;
+async function openObjectEditor(){
+  if (!await editorAskUnlock()) return;
   if (!editorObj) {
     alert("Сначала кликните объект на карте или в списке.");
     return;
@@ -1319,6 +1309,48 @@ applyTheme();
 apply();
 const all = [...layers.values()].map(x=>x.m.getLatLng());
 if (all.length) map.fitBounds(L.latLngBounds(all), {padding:[30,30]});
+
+let cloudRevision=null;const cloudBaseline=new Map();
+async function cloudRequest(action,body){
+ const response=await fetch('/api/registry?action='+action,{method:body?'POST':'GET',cache:'no-store',headers:{'Content-Type':'application/json','X-Editor-Password':cloudPassword},body:body?JSON.stringify({...body,revision:cloudRevision}):undefined});
+ const result=await response.json();if(!response.ok)throw Error(result.error||'Не удалось сохранить.');return result;
+}
+async function loadCloud(){
+ try{const r=await cloudRequest('load');cloudRevision=sessionPatches.size && sessionStorage.getItem("cloudDraftRevision")!==null?Number(sessionStorage.getItem("cloudDraftRevision")):r.revision;
+  for(const d of DATA){if(r.overrides[d.cad])Object.assign(d,r.overrides[d.cad]);cloudBaseline.set(d.cad,{...d});const draft=sessionPatches.get(d.cad);if(draft)for(const f of patchFields)if(Object.hasOwn(draft,f))d[f]=draft[f];normalizeLocFields(d);restylePlot(d);}
+  syncVillages();apply();refreshOpenPopups();
+ }catch(e){document.getElementById('editStatus').textContent='Серверные данные не загружены. '+e.message;}
+}
+async function saveCloud(){
+ if(!await editorAskUnlock())return false;
+ if(editorDirty)applyObjectEditor();if(cloudRevision===null)throw Error('Серверные данные ещё не загружены. Обновите страницу.');
+ const patches=[...sessionPatches.values()].map(p=>({...p}));if(!patches.length)return true;
+ const changes=patches.map(p=>{const result={cad:p.cad},base=cloudBaseline.get(p.cad)||{};for(const f of patchFields)if(Object.hasOwn(p,f)&&(p[f]??'')!==(base[f]??''))result[f]=p[f];return result;});
+ const result=await cloudRequest('save',{patches:changes});for(const p of patches)cloudBaseline.set(p.cad,{...cloudBaseline.get(p.cad),...p});cloudRevision=result.revision;
+ for(const p of patches)if(JSON.stringify(sessionPatches.get(p.cad))===JSON.stringify(p))sessionPatches.delete(p.cad);
+ sessionStorage.setItem(SESSION_PATCH_KEY,JSON.stringify([...sessionPatches.values()]));if(!sessionPatches.size)sessionStorage.removeItem("cloudDraftRevision");updateSessionPatchButton();
+ document.getElementById('editStatus').textContent='Сохранено на сайте: '+patches.length+' объектов. Правки доступны на других устройствах.';return true;
+}
+document.getElementById('cloudSave').onclick=()=>saveCloud().catch(e=>alert(e.message));
+document.getElementById('shareSelected').onclick=async()=>{try{
+ if(!selectedCads.size){alert('Сначала выберите объекты.');return;}
+ if(!await saveCloud())return;
+ const r=await cloudRequest('share',{cads:[...selectedCads]});cloudRevision=r.revision;
+ const url=location.origin+'/share.html#'+r.share.id;
+ prompt('Подборка создана на 10 дней. Скопируйте ссылку:',url);
+ }catch(e){alert(e.message);}};
+const historyDialog=document.createElement('dialog');historyDialog.style.cssText='max-width:640px;width:90%;max-height:80dvh;overflow:auto;border-radius:16px;padding:20px';document.body.append(historyDialog);
+document.getElementById('cloudHistory').onclick=async()=>{try{
+ if(!await editorAskUnlock())return;const r=await cloudRequest('history');
+ historyDialog.innerHTML='<h2>История и подборки</h2><button data-close>Закрыть</button><h3>Последние правки</h3>'+r.history.slice(0,30).map((h,i)=>'<p>'+esc(new Date(h.at).toLocaleString('ru-RU'))+' · '+h.count+' объектов '+(i===0?'<button data-undo="'+h.id+'">Отменить</button>':'')+'</p>').join('')+'<h3>Подборки</h3>'+r.shares.map(s=>'<p>'+esc(new Date(s.createdAt).toLocaleString('ru-RU'))+' · '+s.count+' объектов · до '+esc(new Date(s.expiresAt).toLocaleDateString('ru-RU'))+(s.revoked?' · отключена':Date.parse(s.expiresAt)<=Date.now()?' · истекла':' <button data-link="'+s.id+'">Ссылка</button> <button data-revoke="'+s.id+'">Отключить</button>')+'</p>').join('');historyDialog.showModal();
+ }catch(e){alert(e.message);}};
+historyDialog.onclick=async e=>{const b=e.target.closest('button');if(!b)return;
+ if(b.hasAttribute('data-close')){historyDialog.close();return;}
+ if(b.dataset.link){prompt('Ссылка на подборку',location.origin+'/share.html#'+b.dataset.link);return;}
+ try{if(b.dataset.undo){if(sessionPatches.size||editorDirty)throw Error('Сначала сохраните текущие правки или скачайте патч.');if(!confirm('Отменить последнее серверное изменение?'))return;const r=await cloudRequest('undo',{id:b.dataset.undo});cloudRevision=r.revision;location.reload();}
+ if(b.dataset.revoke){const r=await cloudRequest('revoke',{id:b.dataset.revoke});cloudRevision=r.revision;historyDialog.close();alert('Ссылка отключена.');}}
+ catch(e){alert(e.message);}};
+loadCloud();
 </script>
 </body>
 </html>

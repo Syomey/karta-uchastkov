@@ -1,0 +1,1263 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="map-release" content="2026-11-18-compact-ui">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Участки на карте</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.js"></script>
+<script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js"></script>
+<style>
+:root{--bg:#fff;--fg:#1d2430;--muted:#6b7280;--line:#e5e7eb;--panel:#f8fafc;--accent:#2563eb;--sel:#fde047}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#111418;--fg:#e6e9ee;--muted:#9aa3ae;--line:#2a3038;--panel:#171b21;--accent:#60a5fa;--sel:#facc15}}
+:root[data-theme="dark"]{--bg:#111418;--fg:#e6e9ee;--muted:#9aa3ae;--line:#2a3038;--panel:#171b21;--accent:#60a5fa;--sel:#facc15}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+#app{display:flex;height:100%}
+#side{position:relative;z-index:2;width:340px;max-width:100%;flex:0 0 340px;display:flex;flex-direction:column;border-right:1px solid var(--line);background:var(--panel)}
+#side.closed{width:0;min-width:0;flex:0 0 0;border-right:0;overflow:visible}
+#side.closed #toggle{left:0;border-left:1px solid var(--line)}
+#side.closed header,#side.closed #list{display:none}
+#side header{padding:12px 14px;border-bottom:1px solid var(--line)}
+#side h1{font-size:16px;margin:0 0 8px}
+.row{display:flex;gap:6px;margin-top:6px}
+input,select{width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);font:inherit;min-width:0}
+#stat{color:var(--muted);font-size:12px;margin-top:8px}
+#list{flex:1;overflow:auto;margin:0;padding:0;list-style:none}
+#list li{padding:8px 14px;border-bottom:1px solid var(--line);cursor:pointer}
+#list li:hover{background:var(--bg)}
+#list li.nomap{opacity:.55;cursor:default}
+#list .c{font-weight:600;font-variant-numeric:tabular-nums}
+#list .s{color:var(--muted);font-size:12px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
+#map{flex:1;height:100%;position:relative;z-index:1;isolation:isolate}
+.territory-label{background:var(--panel);color:var(--fg);border:2px solid var(--territory-color);border-radius:12px;padding:7px 10px;box-shadow:0 2px 8px #0003;text-align:center;font:12px/1.3 system-ui;min-width:130px;width:max-content;max-width:220px;transform:translate(-50%,-50%);cursor:pointer}
+.territory-label strong{display:block}.territory-label small{color:var(--muted)}
+#legend{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:8px;font-size:12px;color:var(--muted)}
+#toggle{position:fixed;top:50%;left:340px;transform:translateY(-50%);z-index:2000;padding:8px 7px;border:1px solid var(--line);border-left:0;border-radius:0 6px 6px 0;background:var(--panel);color:var(--fg);font:inherit;font-size:12px;line-height:1.15;cursor:pointer;box-shadow:1px 1px 4px rgba(0,0,0,.18);writing-mode:vertical-rl}
+.leaflet-popup-content{font-size:13px;line-height:1.45;margin:10px 12px}
+.pp b{font-size:14px}
+.pp table{border-collapse:collapse;margin-top:4px}
+.pp td{padding:1px 8px 1px 0;vertical-align:top}
+.pp td:first-child{color:var(--muted);white-space:nowrap}
+.pp a{color:var(--accent)}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--popBg,#fff);color:var(--popFg,#1d2430)}
+.leaflet-tile-pane .tf{filter:var(--tileFilter,none)}
+.leaflet-glPane-pane{pointer-events:none}
+#themeBox{background:var(--panel);color:var(--fg);padding:4px 6px;border-radius:6px;font:12px system-ui;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+#themeBox select{width:auto;padding:2px 4px;font-size:12px}
+#list li.sel{background:var(--sel);color:#1d2430}
+#editPanel{position:fixed;top:0;right:0;z-index:2500;width:min(360px,100%);height:100%;display:flex;flex-direction:column;border-left:1px solid var(--line);background:var(--panel);box-shadow:-4px 0 24px rgba(0,0,0,.15)}
+#editPanel[hidden]{display:none !important}
+#editPanel header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
+#editPanel h2{margin:0;font-size:15px}
+#editPanel .meta{color:var(--muted);font-size:11px;margin-top:4px}
+#editPanel form{flex:1;overflow:auto;padding:12px 14px}
+#editPanel label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
+#editPanel label:first-child{margin-top:0}
+#editPanel .cadro{font-family:ui-monospace,Consolas,monospace;font-size:13px}
+#editFoot{padding:10px 14px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+#editFoot .actions{display:flex;flex-wrap:wrap;gap:6px}
+#editPanel button,#editPanel .btn{padding:7px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);font:inherit;cursor:pointer;text-decoration:none;font-size:13px}
+#editPanel button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+#editStatus{flex:1 1 100%;font-size:11px;color:var(--muted);min-height:1.2em}
+@media (max-width:760px){
+  #app{flex-direction:column}
+  #side{width:100%;flex:0 0 auto;height:auto;max-height:45%;border-right:0;border-bottom:1px solid var(--line)}
+  #side.closed{width:100%;flex:0 0 0;height:0;max-height:0;border:0}
+  #toggle{top:8px;right:8px;left:auto;transform:none;writing-mode:horizontal-tb;border-left:1px solid var(--line);border-radius:6px;position:absolute}
+  #side.closed #toggle{position:fixed;top:8px;left:8px;right:auto}
+  #side h1{padding-right:78px}
+  #side header{padding:10px 16px}
+  #list li{padding:8px 16px}
+}
+
+#side header{max-height:58%;overflow:auto;flex-shrink:0}
+#side.closed #selectionBar{display:none}
+.filterLabel{display:block;font-size:12px;color:var(--muted);margin-top:8px}
+.filterLabel .row{margin-top:3px}
+#numericFilters{margin-top:8px}#numericFilters summary{cursor:pointer}
+#filterError{color:#b45309;font-size:12px;min-height:1em}
+#selectionBar{padding:8px 14px;border-bottom:1px solid var(--line);font-size:12px}
+#selectionBar .row{flex-wrap:wrap}
+button.action{padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);font:inherit;cursor:pointer}
+button.action:disabled{opacity:.45;cursor:default}
+button.action[aria-pressed="true"]{background:var(--accent);color:white}
+#list li.picked{box-shadow:inset 4px 0 #f59e0b;background:color-mix(in srgb,var(--panel) 80%,#f59e0b 20%)}
+#list input.pickCheck{width:18px;height:18px;margin:0 7px 0 0;vertical-align:middle;accent-color:#d97706;cursor:pointer}
+.selection-rect{position:absolute;pointer-events:none;z-index:650;border:2px solid #f59e0b;background:transparent;box-shadow:0 0 0 10000px rgba(0,0,0,.58)}
+#compareDialog{width:min(1100px,96vw);max-height:88dvh;padding:0;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--fg)}
+#compareDialog::backdrop{background:#0007}
+#compareDialog header{padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+#compareDialog h2{margin:0;font-size:17px}
+.compareScroll{overflow:auto;max-height:65dvh}
+#compareDialog table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:13px}
+#compareDialog td,#compareDialog th{padding:9px 12px;border-bottom:1px solid var(--line);text-align:left}
+#compareDialog th{position:sticky;top:0;background:var(--panel)}
+#compareDialog a{color:var(--accent)}
+#compareNote{padding:10px 16px;font-size:12px;color:var(--muted)}
+@media(max-width:760px){#side{max-height:55%}#side header{max-height:27dvh}#selectionBar{padding:6px 14px}#compareDialog{width:98vw}}
+
+#map{overflow:hidden}
+#touchTools{display:none;background:var(--panel);color:var(--fg);padding:7px;border:1px solid var(--line);border-radius:10px;box-shadow:0 2px 8px #0003;max-width:310px}
+#touchTools .row{margin:0;gap:5px;flex-wrap:wrap}
+#touchTools button{min-height:44px;min-width:44px}
+#touchModeHint{font-size:12px;max-width:275px;margin-top:5px}
+#side h1{-webkit-touch-callout:none;user-select:none}
+@media(pointer:coarse),(max-width:760px){
+  #touchTools{display:block}
+  input,select,button.action{font-size:16px;min-height:44px}
+  #list input.pickCheck{width:24px;height:24px;min-height:24px}
+  #list li{padding-top:12px;padding-bottom:12px}
+  #editPanel{width:min(440px,100%)}
+  #editFoot{padding-bottom:max(10px,env(safe-area-inset-bottom))}
+}
+@media(max-width:760px){
+  #app{display:block}#map{width:100%;height:100%}
+  #side{position:absolute;bottom:0;left:0;width:100%;height:62dvh;max-height:none;z-index:1001;border:1px solid var(--line);border-bottom:0;border-radius:16px 16px 0 0;box-shadow:0 -3px 18px #0003}
+  #side.closed{height:0;max-height:0;width:100%;border:0;box-shadow:none}
+  #side header{max-height:27dvh}#side h1{padding-right:0;font-size:14px}
+  #list{min-height:0}#selectionBar{padding:7px 12px}
+  #toggle,#side.closed #toggle{position:absolute;left:auto;right:12px;top:-46px;transform:none;writing-mode:horizontal-tb;min-height:40px;padding:8px 14px;border:1px solid var(--line);border-radius:8px}
+  #side:not(.closed)~#map .leaflet-bottom{bottom:calc(62dvh + 8px)}
+  #side.closed~#map .leaflet-bottom{bottom:max(8px,env(safe-area-inset-bottom))}
+  #touchTools{max-width:260px}
+  #editPanel{width:100%;height:100dvh}
+}
+
+/* Scoped form sizing keeps Leaflet radio inputs at their native compact size. */
+.leaflet-control-layers input{width:auto!important;min-height:0!important;padding:0!important}
+#objectCard[hidden],#basePicker[hidden]{display:none!important}
+#objectCard{position:fixed;z-index:1700;right:16px;top:95px;width:290px;max-height:calc(100dvh - 115px);overflow:auto;background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:16px;padding:12px 15px;box-shadow:0 4px 20px #0003}
+.object-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px}
+.object-price{font-size:24px;font-weight:600;letter-spacing:-.5px;margin-top:3px}
+.object-metrics{font-size:14px;margin-top:3px}
+.object-cad{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.object-cad a{color:var(--accent);text-decoration:underline}
+button.cadCopy{width:38px;min-width:38px;min-height:36px;padding:4px;border:0;background:transparent;color:var(--accent);border-radius:7px;cursor:pointer;font-size:19px}
+.object-actions{display:flex;gap:8px;margin-top:8px}.object-actions>*{flex:1;text-align:center;text-decoration:none}
+.object-detail{border-top:1px solid var(--line);margin-top:10px;padding-top:8px;font-size:13px}.object-detail dl{margin:0}.object-detail dt{color:var(--muted);font-size:12px;margin-top:6px}.object-detail dd{margin:0}
+#basePicker{position:fixed;z-index:2000;right:14px;top:68px;width:265px;border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--fg);padding:10px 15px;box-shadow:0 5px 24px #0003}
+.picker-heading{display:flex;align-items:center;justify-content:space-between;font-weight:600}
+.base-option{width:100%;min-height:46px;display:flex;align-items:center;gap:10px;border:0;background:transparent;color:var(--fg);padding:8px 0;text-align:left;font:inherit;cursor:pointer}
+.base-option[aria-pressed="true"]{color:var(--accent);font-weight:600}.base-option .base-label{flex:1}
+.base-swatch{width:34px;height:28px;border:1px solid var(--line);border-radius:6px;background:repeating-linear-gradient(35deg,var(--panel) 0 8px,#8dba9066 8px 16px)}
+.base-swatch.satellite{background:linear-gradient(40deg,#294b32,#87955c)}
+.base-swatch.hybrid{background:repeating-linear-gradient(40deg,#345d36 0 9px,#cad2a6 9px 11px)}
+.base-swatch.osm{background:repeating-linear-gradient(100deg,#dedccc 0 9px,#adc7cd 9px 12px)}
+.base-grid{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0 4px;border-top:1px solid var(--line)}.base-grid input{width:20px;min-height:20px;height:20px}
+#baseBackdrop{position:fixed;inset:0;z-index:1999;background:#0004}#baseBackdrop[hidden]{display:none}
+#basePickerButton{min-height:44px;padding:8px 12px}
+@media(max-width:760px){#objectCard{top:auto;right:8px;left:8px;bottom:max(8px,env(safe-area-inset-bottom));width:auto;max-height:72dvh;padding:9px 15px 12px}#basePicker{top:auto;bottom:0;left:0;right:0;width:auto;border-radius:20px 20px 0 0;padding:13px 18px max(18px,env(safe-area-inset-bottom))}.object-actions button.action,.object-actions a{font-size:14px;min-height:42px}#side.closed~#map .leaflet-bottom{bottom:58px}#touchTools{max-width:270px}}
+#list{min-height:min(200px,30dvh);overscroll-behavior:contain;scrollbar-gutter:stable}
+#side header{flex:0 1 auto;min-height:0}
+#selectionBar,#listSummary{flex-shrink:0}
+#listSummary{padding:7px 14px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line)}
+#side.closed #listSummary{display:none}
+.list-filters-button{display:none}
+@media(max-width:760px){
+  #side{height:76dvh}
+  #side:not(.closed)~#map .leaflet-bottom{bottom:calc(76dvh + 8px)}
+  #selectionHelp{display:none}
+  #selectionBar button.action{font-size:14px;min-height:40px;padding:6px 8px}
+  #list{min-height:min(190px,29dvh)}
+  #side.has-selection header{max-height:28dvh}
+  #side.has-selection .list-filters-button{display:block;margin-top:5px;font-size:13px;min-height:36px}
+  #side.has-selection:not(.filters-open) header>:not(h1):not(.list-filters-button){display:none}
+}
+
+#compareDialog header{flex-wrap:wrap}
+.column-filter{display:inline-flex;align-items:center;gap:7px;border:0;background:transparent;color:var(--fg);font:inherit;font-weight:600;min-height:36px;padding:4px 0;cursor:pointer}
+.column-filter[aria-pressed="true"]{color:var(--accent)}
+.column-filter .filter-arrow{font-size:11px}
+#compareFilterPanel{position:absolute;z-index:10;width:290px;max-width:calc(100% - 16px);max-height:55dvh;overflow:auto;background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:12px;box-shadow:0 6px 24px #0004}
+#compareFilterPanel[hidden]{display:none!important}
+.filter-sort-row,.filter-footer{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}
+.filter-values{max-height:170px;overflow:auto;margin:8px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.filter-value{display:flex;align-items:center;gap:8px;min-height:32px;font-size:13px;overflow-wrap:anywhere}
+.filter-value input{width:17px;height:17px;min-height:17px;padding:0;flex-shrink:0}
+#filterColumnSearch{margin-top:8px}
+@media(pointer:coarse){.column-filter{min-height:44px}.filter-value{min-height:42px}}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="side">
+    <button id="toggle" type="button" aria-controls="side" aria-expanded="true" aria-label="Скрыть список участков">Скрыть</button>
+    <header>
+      <h1>Участки: Симферопольский р-н и Алушта</h1>
+      <button id="listFiltersToggle" class="action list-filters-button" type="button" aria-expanded="false">Показать фильтры</button>
+      <input id="q" type="search" placeholder="Кадастр, адрес или ID Топнлаба" aria-label="Поиск по кадастру, адресу или ID Топнлаба">
+      <div class="row">
+        <select id="sh"><option value="">Все муниципальные территории</option></select>
+        <select id="pr">
+          <option value="">Любая цена</option>
+          <option value="0-2000000">до 2 млн</option>
+          <option value="2000000-3500000">2–3,5 млн</option>
+          <option value="3500000-5000000">3,5–5 млн</option>
+          <option value="5000000-999999999">от 5 млн</option>
+        </select>
+      </div>
+      <div class="row">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;user-select:none">
+          <input id="clientView" type="checkbox" style="width:auto;margin:0"> Показ клиенту
+        </label>
+      </div>
+      <div class="row"><select id="village" aria-label="Населённый пункт"><option value="">Все населённые пункты</option></select></div>
+      <details id="numericFilters"><summary>Площадь, цена за сотку и сортировка</summary>
+        <label class="filterLabel">Площадь земли, сот.<span class="row"><input id="areaMin" type="number" min="0" step="any" placeholder="от" aria-label="Площадь от, соток"><input id="areaMax" type="number" min="0" step="any" placeholder="до" aria-label="Площадь до, соток"></span></label>
+        <label class="filterLabel">Цена за сотку, ₽<span class="row"><input id="unitMin" type="number" min="0" step="any" placeholder="от" aria-label="Цена за сотку от"><input id="unitMax" type="number" min="0" step="any" placeholder="до" aria-label="Цена за сотку до"></span></label>
+        <div id="filterError" role="status"></div>
+        <select id="sortOrder" aria-label="Сортировка"><option value="default">Исходный порядок</option><option value="price-asc">Цена: сначала дешевле</option><option value="price-desc">Цена: сначала дороже</option><option value="area-asc">Площадь: по возрастанию</option><option value="area-desc">Площадь: по убыванию</option><option value="unit-asc">Цена за сотку: по возрастанию</option><option value="unit-desc">Цена за сотку: по убыванию</option></select>
+      </details>
+      <div id="hierarchyHint" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
+      <div id="legend"></div>
+      <div id="stat"></div>
+    </header>
+    <div id="selectionBar">
+      <div id="selectionCount" role="status" aria-live="polite">Выбрано: 0</div>
+      <div class="row"><button class="action" id="onlySelected" type="button" aria-pressed="false">Только выбранные</button><button class="action" id="shareSelected" type="button">Поделиться</button><button class="action" id="compareSelected" type="button" disabled>Сравнить</button><button class="action" id="copySelected" type="button" disabled>Копировать</button><button class="action" id="clearSelected" type="button" disabled>Снять выделение</button></div>
+      <div id="copyStatus" role="status" aria-live="polite"></div>
+      <div id="selectionHelp" style="margin-top:5px;color:var(--muted)">Shift + клик — выбрать; Shift + перетаскивание — рамка. Также можно отметить флажки.</div>
+    </div>
+    <div id="listSummary" role="status"></div>
+    <ul id="list" aria-label="Список объектов"></ul>
+  </aside>
+  <div id="map"></div>
+</div>
+<section id="objectCard" hidden aria-label="Карточка объекта"></section>
+<div id="baseBackdrop" hidden></div><section id="basePicker" hidden aria-label="Вид карты"><div class="picker-heading">Вид карты<button class="action" id="closeBasePicker" type="button">Закрыть</button></div><div id="baseOptions"></div><label class="base-grid">Кадастровая сетка<input id="baseGridToggle" type="checkbox" checked></label></section>
+<div id="editPanel" hidden aria-hidden="true" aria-labelledby="editTitle">
+  <header>
+    <div>
+      <h2 id="editTitle">Редактор объекта</h2>
+      <div class="meta">Ctrl+Y · закрыть Ctrl+N</div>
+    </div>
+    <button type="button" id="editClose" aria-label="Закрыть редактор">×</button>
+  </header>
+  <form id="editForm" onsubmit="return false">
+    <label>Кадастровый номер<input id="edCad" class="cadro" type="text" readonly tabindex="-1"></label>
+    <label>Топнлаб id<input id="edId" class="cadro" type="text" inputmode="numeric" autocomplete="off"></label>
+    <label>Цена, ₽<input id="edPrice" type="number" min="0" step="1000"></label>
+    <label>Населённый пункт<input id="edVill" type="text" placeholder="например Доброе"></label>
+    <label>Поселение <span id="editColorDot" class="dot" title="цвет на карте"></span><input id="edSheet" type="text" placeholder="например Добровское"></label>
+    <label>Тип (kind)<input id="edKind" type="text" placeholder="участок / дом"></label>
+    <label>Заголовок<input id="edTitle" type="text"></label>
+    <label>Агент<input id="edAgent" type="text"></label>
+    <label>src<input id="edSrc" type="text"></label>
+    <label>Авито URL<input id="edAvito" type="url"></label>
+  </form>
+  <div id="editFoot">
+    <div id="editStatus"></div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin:0 0 8px;cursor:pointer;user-select:none">
+      <input id="editAutoPick" type="checkbox" style="width:auto;margin:0"> Авто: клик по объекту открывает редактор (после пароля)
+    </label>
+    <div class="actions">
+      <button type="button" class="primary" id="editApply">Применить</button>
+      <button type="button" id="cloudSave">Сохранить на сайте</button><button type="button" id="cloudHistory">История и ссылки</button><button type="button" id="editPatch">Скачать патч сессии (0)</button>
+      <a class="btn" id="editTopnlab" href="#" target="_blank" rel="noopener" hidden>Карточка CRM</a>
+    </div>
+  </div>
+</div>
+<dialog id="compareDialog" aria-labelledby="compareTitle"><header><h2 id="compareTitle">Сравнение объектов</h2><button type="button" class="action" id="resetCompareFilters">Сбросить фильтры</button><button type="button" class="action" id="compareCopy" disabled>Копировать</button><button type="button" class="action" id="closeCompare">Закрыть</button></header><div id="compareFilterPanel" hidden role="region" aria-label="Фильтр столбца"></div><div class="compareScroll"><table><thead><tr><th><button type="button" class="column-filter" data-column="cad" aria-label="Фильтр и сортировка: Кадастр" aria-expanded="false" aria-pressed="false">Кадастр<span class="filter-arrow" aria-hidden="true">▼</span></button></th><th><button type="button" class="column-filter" data-column="vill" aria-label="Фильтр и сортировка: Населённый пункт" aria-expanded="false" aria-pressed="false">Населённый пункт<span class="filter-arrow" aria-hidden="true">▼</span></button></th><th><button type="button" class="column-filter" data-column="area" aria-label="Фильтр и сортировка: Земля, сот." aria-expanded="false" aria-pressed="false">Земля, сот.<span class="filter-arrow" aria-hidden="true">▼</span></button></th><th><button type="button" class="column-filter" data-column="price" aria-label="Фильтр и сортировка: Цена, ₽" aria-expanded="false" aria-pressed="false">Цена, ₽<span class="filter-arrow" aria-hidden="true">▼</span></button></th><th><button type="button" class="column-filter" data-column="unit" aria-label="Фильтр и сортировка: ₽/сот." aria-expanded="false" aria-pressed="false">₽/сот.<span class="filter-arrow" aria-hidden="true">▼</span></button></th><th><button type="button" class="column-filter" data-column="id" aria-label="Фильтр и сортировка: Топнлаб" aria-expanded="false" aria-pressed="false">Топнлаб<span class="filter-arrow" aria-hidden="true">▼</span></button></th><th>Действия</th></tr></thead><tbody id="compareBody"></tbody></table></div><div id="compareNote"></div></dialog>
+<!--SITE_SCRIPTS-->
+<script>
+const THEMES = {};
+/*THEMES*/
+// Site build: objects come from data/objects.js (window.OBJECTS); single-file build inlines them here.
+const DATA = window.OBJECTS || /*DATA*/[];
+const SESSION_PATCH_KEY="mapSessionPatchesV2";
+const sessionPatches=new Map();
+const patchFields=["id","price","vill","sheet","kind","title","agent","src","avito"];
+try{
+  const saved=JSON.parse(sessionStorage.getItem(SESSION_PATCH_KEY)||"[]");
+  if(Array.isArray(saved))for(const p of saved){const d=DATA.find(d=>d.cad===p.cad);if(!d)continue;for(const field of patchFields)if(Object.hasOwn(p,field))d[field]=p[field];sessionPatches.set(p.cad,p);}
+}catch(e){}
+const selectedCads = new Set();
+let visibleObjects = [], onlySelected = false, suppressPlotClickUntil = 0;
+let objectPopup = null, popupObject = null, objectDetailsExpanded = false;
+let touchSelectionMode = false, boxSelectionMode = false;
+// Plots without an NSPD outline arrive with an empty geometry object.
+for (const d of DATA) {
+  if (!d.g || !Array.isArray(d.g.coordinates)) { d.g = null; continue; }
+  // NSPD gives a point instead of an outline when the plot has no surveyed boundary.
+  d.point = d.g.type === "Point";
+  // Drop positions outside Crimea: they come from mistyped cadastral numbers.
+  let lon = 0, lat = 0, k = 0; const walk = c => Array.isArray(c[0]) ? c.forEach(walk) : (lon += c[0], lat += c[1], k++); walk(d.g.coordinates);
+  lon /= k; lat /= k; if (lon < 32.4 || lon > 36.7 || lat < 44.3 || lat > 46.3) { d.g = null; d.point = false; d.bad = true; }
+}
+const NEIGH = /*NEIGH*/[];
+const BUILT = "/*BUILT*/";
+const POS_OF = /*POS_OF*/{};
+const COLORS = {"Трудовское":"#e11d48","Перовское":"#2563eb","Мирновское":"#16a34a","Чистенское":"#d97706","Добровское":"#7c3aed"};
+const PALETTE = ["#0891b2","#db2777","#65a30d","#ea580c","#4f46e5","#0d9488","#b45309","#9333ea","#dc2626","#0284c7","#ca8a04","#059669"];
+const col = s => { if (COLORS[s]) return COLORS[s]; let h = 0; for (const ch of String(s||"")) h = (h*31 + ch.charCodeAt(0)) >>> 0; return PALETTE[h % PALETTE.length]; };
+// Current theme; defined before any layer is built because layer styles call theme().
+let themeKey = "obychnaya";
+try { const k = localStorage.getItem("mapTheme"); if (k && THEMES[k]) themeKey = k; } catch (e) {}
+if (!THEMES[themeKey]) themeKey = Object.keys(THEMES)[0];
+const FALLBACK = {grid:{color:"#ef4444",weight:1,fillOpacity:.04}, ours:c=>({color:c,weight:2,fillColor:c,fillOpacity:.35}), marker:c=>({radius:5,color:"#fff",weight:1,fillColor:c,fillOpacity:1}), point:c=>({radius:7,color:c,weight:2,dashArray:"3 3",fillOpacity:.15})};
+function theme(){ return THEMES[themeKey] || FALLBACK; }
+function colOf(s){ const t = theme(); return t.colorOf ? t.colorOf(s) : col(s); }
+// Municipalities on the overview; individual localities when zoomed in.
+const VILLAGE_ZOOM = 12;
+function plotColorKey(d){ return map.getZoom() < VILLAGE_ZOOM ? (d.sheet || "Территория не уточнена") : (d.vill || d.sheet || "Населённый пункт не уточнён"); }
+function territoryName(s){
+  if (!s) return "Территория не уточнена";
+  if (s.startsWith("м.о. ")) return "Муниципальный округ " + s.slice(5);
+  if (s.startsWith("г.о. ")) return "Городской округ " + s.slice(5);
+  return s.endsWith("ское") || s.endsWith("цкое") ? s + " сельское поселение" : s;
+}
+function localityName(v){
+  if (!v) return "Населённый пункт не уточнён";
+  if (["Партенит","Николаевка","Молодежное","Зуя"].includes(v)) return "пгт " + v;
+  if (["Алушта","Симферополь"].includes(v)) return "г. " + v;
+  return v;
+}
+function colOfPlot(d){
+  const key = plotColorKey(d);
+  if (key === "м.о. Алушта" || key === "г.о. Алушта") return "#14532d";
+  return col(key);
+}
+function normalizeLocFields(o){
+  let v = (o.vill || "").trim();
+  let s = (o.sheet || "").trim();
+  if (!v && s && POS_OF[s]) { v = s; s = POS_OF[v] || s; }
+  else if (v && POS_OF[v]) {
+    if (!s || s === v) s = POS_OF[v];
+  }
+  o.vill = v || undefined;
+  if (s === "г.о. Алушта") s = "м.о. Алушта";
+  o.sheet = s;
+}
+function restylePlot(d){
+  const L1 = layers.get(d.cad);
+  if (!L1) return;
+  const t = theme();
+  const c = colOfPlot(d);
+  stylePlot(L1);
+}
+function syncEditorLocationPreview(){
+  if (!editorObj) return;
+  editorObj.vill = document.getElementById("edVill").value.trim();
+  editorObj.sheet = document.getElementById("edSheet").value.trim();
+  normalizeLocFields(editorObj);
+  document.getElementById("edVill").value = editorObj.vill || "";
+  document.getElementById("edSheet").value = editorObj.sheet || "";
+  const dot = document.getElementById("editColorDot");
+  dot.style.background = colOfPlot(editorObj);
+  dot.title = plotColorKey(editorObj);
+  restylePlot(editorObj);
+  apply();
+}
+const themeStyle = document.createElement("style"); document.head.appendChild(themeStyle);
+const fmt = n => n==null ? "—" : Math.round(n).toLocaleString("ru-RU");
+const esc = s => String(s??"").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+// Selection/filter helpers: shared by list, map, popups and comparison.
+function positive(value){
+  if (value == null || typeof value === "object" || typeof value === "boolean" || value === "") return null;
+  const n = Number(value); return Number.isFinite(n) && n > 0 ? n : null;
+}
+function objectKind(d){
+  const kind = String(d.kind || "").trim().toLowerCase();
+  if (kind) return kind;
+  const url = String(d.avito || "").toLowerCase();
+  if (url.includes("/zemelnye_uchastki/")) return "участок";
+  if (url.includes("/doma_dachi_kottedzhi/")) return "дом";
+  if (url.includes("/kvartiry/") || url.includes("/komnaty/")) return "квартира";
+  if (url.includes("/kommercheskaya_nedvizhimost/")) return "коммерция";
+  const title = String(d.title || "").trim().toLowerCase();
+  if (/^участок(?:\s|,|$)/u.test(title)) return "участок";
+  if (/^(дом|дача|коттедж)(\s|,|$)/u.test(title)) return "дом";
+  if (/квартир|апартамент|студия|планировка/u.test(title)) return "квартира";
+  return "";
+}
+function areaSot(d){
+  const kind = objectKind(d);
+  if (["квартира","апартаменты","комната"].includes(kind)) return null;
+  const area = positive(d.area); return area == null ? null : area / 100;
+}
+function pricePerSot(d){
+  if (objectKind(d) !== "участок") return null;
+  const price=positive(d.price), area=areaSot(d);
+  return price == null || area == null ? null : price / area;
+}
+function sotText(d){ const n=areaSot(d); return n == null ? "—" : n.toLocaleString("ru-RU",{maximumFractionDigits:2}); }
+function unitText(d){ const n=pricePerSot(d); return n == null ? "—" : fmt(n)+" ₽/сот."; }
+function inRange(value, range){ return !range.active || (value != null && value >= range.min && value <= range.max); }
+function passesNumeric(d, area, unit){ return inRange(areaSot(d),area) && inRange(pricePerSot(d),unit); }
+function parseRange(minText,maxText){
+  const min = minText === "" ? 0 : Number(minText), max = maxText === "" ? Infinity : Number(maxText);
+  return {min,max,active:minText!==""||maxText!=="",valid:Number.isFinite(min)&&min>=0&&(max===Infinity||Number.isFinite(max))&&max>=min};
+}
+function readNumericRanges(){
+  const read = id => document.getElementById(id).value.trim();
+  const area=parseRange(read("areaMin"),read("areaMax")), unit=parseRange(read("unitMin"),read("unitMax"));
+  const inputs=["areaMin","areaMax","unitMin","unitMax"];
+  const valid = area.valid && unit.valid && inputs.every(id=>document.getElementById(id).validity.valid);
+  document.getElementById("filterError").textContent = valid ? "" : "Укажите неотрицательные числа; «от» не должно быть больше «до».";
+  return {area,unit,valid};
+}
+function sortObjects(items,order){
+  if(order==="default") return items;
+  const [key,direction]=order.split("-");
+  const value=d=>key==="area"?areaSot(d):key==="unit"?pricePerSot(d):positive(d.price);
+  return items.sort((a,b)=>{const av=value(a),bv=value(b);if(av==null)return bv==null?0:1;if(bv==null)return -1;return (av-bv)*(direction==="desc"?-1:1);});
+}
+function addSelectionInBounds(items, bounds, pointOf){
+  for (const d of items){const point=pointOf(d);if(point && bounds.contains(point)) selectedCads.add(d.cad);}
+}
+function stylePlot({d,lyr,m}){
+  const t=theme(),c=colOfPlot(d),picked=selectedCads.has(d.cad);
+  lyr.eachLayer(x=>x.setStyle({...((x instanceof L.CircleMarker)?t.point(c):t.ours(c)),...(picked?{color:"#f59e0b",weight:4,opacity:1}:{})}));
+  m.setStyle({...t.marker(c),...(picked?{radius:8,color:"#f59e0b",weight:3,fillColor:c}:{})});
+}
+function toggleSelected(cad){
+  if(selectedCads.has(cad))selectedCads.delete(cad);else selectedCads.add(cad);
+  onlySelected=selectedCads.size>0;
+  apply();
+}
+function selectedCadText(){
+  const rows=document.getElementById("compareDialog").open?comparisonRows():sortObjects(DATA.filter(d=>selectedCads.has(d.cad)),document.getElementById("sortOrder").value);
+  return rows.map(d=>d.cad).join("\n");
+}
+async function copySelectedCads(){
+  const text=selectedCadText();if(!text)return;
+  let copied=false;
+  if(navigator.clipboard && navigator.clipboard.writeText){try{await navigator.clipboard.writeText(text);copied=true;}catch(e){}}
+  if(!copied){
+    const focused=document.activeElement,field=document.createElement("textarea");
+    field.value=text;field.style.cssText="position:fixed;top:0;left:0;opacity:0;font-size:16px";
+    const host=document.getElementById("compareDialog").open?document.getElementById("compareDialog"):document.body;
+    host.appendChild(field);field.focus();field.select();field.setSelectionRange(0,text.length);
+    try{copied=document.execCommand("copy");}catch(e){}
+    field.remove();if(focused&&focused.focus)focused.focus({preventScroll:true});
+  }
+  document.getElementById("copyStatus").textContent=copied?"Скопировано номеров: "+text.split("\n").length:"Автоматическое копирование недоступно.";
+  if(copied){
+    for(const id of ["copySelected","touchCopy","compareCopy"]){const b=document.getElementById(id);if(b)b.textContent="Скопировано";}
+    setTimeout(()=>{for(const id of ["copySelected","touchCopy","compareCopy"]){const b=document.getElementById(id);if(b)b.textContent="Копировать";}},2500);
+  }else window.prompt("Скопируйте кадастровые номера:",text);
+}
+function compactInterface(){return innerWidth<=760||isTouchDevice();}
+async function copyOneCad(cad,button,label="кадастр"){
+  let copied=false;
+  try{if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(cad);copied=true;}}catch(e){}
+  if(!copied){const field=document.createElement("textarea");field.value=cad;field.style.cssText="position:fixed;opacity:0;font-size:16px";document.body.appendChild(field);field.focus();field.select();field.setSelectionRange(0,cad.length);try{copied=document.execCommand("copy");}catch(e){}field.remove();button.focus({preventScroll:true});}
+  if(copied){button.textContent="✓";button.setAttribute("aria-label",label+" скопирован");setTimeout(()=>{button.textContent="⧉";button.setAttribute("aria-label","Копировать "+label);},2000);}else window.prompt("Скопируйте "+label+":",cad);
+}
+function renderObjectCard(d){
+  const rows=[["Адрес",d.addr||"—"],["Использование",d.use||"—"],["Категория",d.cat||"—"],["Кад. стоимость",positive(d.cost)?fmt(d.cost)+" ₽":"—"],["Муниципальная территория",territoryName(d.sheet)]];
+  const card=document.getElementById("objectCard");
+  card.innerHTML='<div class="object-head"><span>'+esc((objectKind(d)||"Объект")+' · '+(d.vill||d.sheet||"Местоположение не уточнено"))+'</span><button class="action" type="button" data-card-close aria-label="Закрыть карточку">×</button></div><div class="object-price">'+(positive(d.price)?fmt(d.price)+" ₽":"Цена не указана")+'</div><div class="object-metrics">'+sotText(d)+' сот. · '+unitText(d)+'</div><div class="object-cad"><span>'+esc(d.cad)+'</span><button class="cadCopy" type="button" data-copy-cad="'+esc(d.cad)+'" aria-label="Копировать кадастровый номер" title="Копировать кадастр">⧉</button></div>'+
+  (d.id?'<div class="object-cad"><span>Топнлаб ID</span><a target="_blank" rel="noopener" href="https://crm.topnlab.ru/object-card/'+encodeURIComponent(d.id)+'">'+esc(d.id)+'</a><button class="cadCopy" type="button" data-copy-id="'+esc(d.id)+'" aria-label="Копировать ID Топнлаба" title="Копировать ID Топнлаба">⧉</button></div>':'')+
+  (objectDetailsExpanded?'<div class="object-detail"><dl>'+rows.map(([k,v])=>'<dt>'+esc(k)+'</dt><dd>'+esc(v)+'</dd>').join('')+'</dl>'+(!isClientView()&&d.avito?'<p><a target="_blank" rel="noopener" href="'+esc(d.avito)+'">Авито ↗</a></p>':'')+(layers.has(d.cad)?'<p><a target="_blank" rel="noopener" href="'+nspdLink(layers.get(d.cad).lyr)+'">НСПД ↗</a></p>':'')+'</div>':'')+
+  '<div class="object-actions"><button class="action" type="button" data-card-details aria-expanded="'+objectDetailsExpanded+'">'+(objectDetailsExpanded?'Свернуть':'Подробнее')+'</button>'+(d.id?'<a class="action" target="_blank" rel="noopener" href="https://crm.topnlab.ru/object-card/'+encodeURIComponent(d.id)+'">Топнлаб ↗</a>':'')+'</div>';
+}
+function openPlotPopup(d){
+  const entry=layers.get(d.cad);if(!entry)return;
+  if(!popupObject||popupObject.cad!==d.cad)objectDetailsExpanded=false;
+  popupObject=d;
+  if(compactInterface()){
+    map.closePopup();if(innerWidth<=760)setSideClosed(true,false);
+    renderObjectCard(d);document.getElementById("objectCard").hidden=false;
+  }else{
+    document.getElementById("objectCard").hidden=true;
+    if(!objectPopup)objectPopup=L.popup({maxWidth:340});
+    objectPopup.setLatLng(entry.lyr.getBounds().getCenter()).setContent(popup(d)).openOn(map);
+  }
+}
+
+function updateSelectionUI(){
+  document.getElementById("side").classList.toggle("has-selection",selectedCads.size>0);
+  const visible=new Set(visibleObjects.map(d=>d.cad));
+  const hidden=[...selectedCads].filter(c=>!visible.has(c)).length;
+  document.getElementById("selectionCount").textContent="Выбрано: "+selectedCads.size+(hidden?" · скрыто фильтрами: "+hidden:"");
+  document.getElementById("clearSelected").disabled=!selectedCads.size;
+  document.getElementById("compareSelected").disabled=selectedCads.size<2;
+  document.getElementById("copySelected").disabled=!selectedCads.size;
+  document.getElementById("compareCopy").disabled=!selectedCads.size;
+  document.getElementById("onlySelected").setAttribute("aria-pressed",String(onlySelected));
+  document.getElementById("listSummary").textContent="Объектов в списке: "+visibleObjects.length+(visibleObjects.length>1?" · прокрутите вниз ↓":"");
+  updateTouchTools();
+}
+const comparisonFilters=Object.create(null);
+let comparisonSort=null,columnFilterDraft=null;
+function comparisonValue(d,key){
+  if(key==='area')return areaSot(d);if(key==='price')return positive(d.price);if(key==='unit')return pricePerSot(d);
+  return String(d[key]||'').trim();
+}
+function comparisonRows(){
+  const rows=DATA.filter(d=>selectedCads.has(d.cad)&&Object.entries(comparisonFilters).every(([key,filter])=>{
+    const value=comparisonValue(d,key);
+    if(filter.type==='text')return filter.values.has(value);
+    return value==null?filter.empty:value>=filter.min&&value<=filter.max;
+  }));
+  if(comparisonSort){const {key,direction}=comparisonSort;rows.sort((a,b)=>{const av=comparisonValue(a,key),bv=comparisonValue(b,key),ae=av==null||av==='',be=bv==null||bv==='';if(ae)return be?0:1;if(be)return -1;const diff=typeof av==='number'?av-bv:av.localeCompare(bv,'ru',{numeric:true});return diff*(direction==='asc'?1:-1);});}
+  else sortObjects(rows,document.getElementById('sortOrder').value);
+  return rows;
+}
+function closeColumnFilter(){document.getElementById('compareFilterPanel').hidden=true;document.querySelectorAll('.column-filter').forEach(b=>b.setAttribute('aria-expanded','false'));columnFilterDraft=null;}
+function openColumnFilter(button){
+  const key=button.dataset.column,panel=document.getElementById('compareFilterPanel');
+  if(columnFilterDraft&&columnFilterDraft.key===key){closeColumnFilter();return;}
+  closeColumnFilter();
+  const numeric=['area','price','unit'].includes(key),old=comparisonFilters[key];
+  const values=[...new Set(DATA.filter(d=>selectedCads.has(d.cad)).map(d=>String(comparisonValue(d,key)??'')))].sort((a,b)=>a.localeCompare(b,'ru',{numeric:true}));
+  columnFilterDraft={key,numeric,values,selected:new Set(old&&old.type==='text'?old.values:values)};
+  panel.innerHTML='<strong>'+esc(button.textContent.replace(/[▼▲●]/g,'').trim())+'</strong><div class="filter-sort-row"><button class="action" type="button" data-column-sort="asc">По возрастанию ↑</button><button class="action" type="button" data-column-sort="desc">По убыванию ↓</button></div>'+
+  (numeric?'<label class="filterLabel">От<input id="columnMin" type="number" min="0" step="any" value="'+(old&&Number.isFinite(old.min)?old.min:'')+'"></label><label class="filterLabel">До<input id="columnMax" type="number" min="0" step="any" value="'+(old&&Number.isFinite(old.max)?old.max:'')+'"></label><label class="filter-value"><input id="columnEmpty" type="checkbox" '+(!old||old.empty?'checked':'')+'>Включать пустые значения</label>':'<input id="filterColumnSearch" type="search" placeholder="Поиск значений" aria-label="Поиск значений столбца"><label class="filter-value"><input id="columnAll" type="checkbox">Выбрать все найденные</label><div class="filter-values" id="columnValues"></div>')+
+  '<div id="columnError" role="alert" style="color:#b45309;font-size:12px"></div><div class="filter-footer"><button class="action" type="button" data-column-apply>Применить</button><button class="action" type="button" data-column-reset>Очистить</button><button class="action" type="button" data-column-cancel>Отмена</button></div>';
+  panel.hidden=false;button.setAttribute('aria-expanded','true');
+  const br=button.getBoundingClientRect(),dr=document.getElementById('compareDialog').getBoundingClientRect();
+  panel.style.left=Math.max(8,Math.min(br.left-dr.left,dr.width-306))+'px';panel.style.top=Math.max(8,br.bottom-dr.top)+'px';
+  if(!numeric){renderColumnValues();document.getElementById('filterColumnSearch').focus();}else document.getElementById('columnMin').focus();
+}
+function renderColumnValues(){
+  if(!columnFilterDraft||columnFilterDraft.numeric)return;
+  const draft=columnFilterDraft,q=document.getElementById('filterColumnSearch').value.toLowerCase();
+  const values=draft.values.filter(v=>(v||'(Пустые)').toLowerCase().includes(q));
+  document.getElementById('columnValues').innerHTML=values.map(v=>'<label class="filter-value"><input type="checkbox" data-column-value="'+esc(v)+'" '+(draft.selected.has(v)?'checked':'')+'><span>'+esc(v||'(Пустые)')+'</span></label>').join('')||(q?'Нет совпадений':'Нет значений');
+  const all=document.getElementById('columnAll'),count=values.filter(v=>draft.selected.has(v)).length;all.checked=values.length>0&&count===values.length;all.indeterminate=count>0&&count<values.length;
+}
+
+function renderComparison(){
+  const rows=comparisonRows();
+  document.getElementById("compareTitle").textContent="Сравнение объектов: "+rows.length+" из "+selectedCads.size;
+  document.querySelectorAll(".column-filter").forEach(button=>{const key=button.dataset.column,active=!!comparisonFilters[key];button.setAttribute("aria-pressed",String(active));button.querySelector(".filter-arrow").textContent=active?"●":comparisonSort&&comparisonSort.key===key?(comparisonSort.direction==="asc"?"▲":"▼"):"▼";});
+  document.getElementById("compareCopy").disabled=!rows.length;
+  document.getElementById("compareBody").innerHTML=rows.map(d=>'<tr><td>'+esc(d.cad)+'</td><td>'+esc(d.vill||"—")+'</td><td>'+sotText(d)+'</td><td>'+(positive(d.price)?fmt(d.price):"—")+'</td><td>'+(pricePerSot(d)==null?"—":fmt(pricePerSot(d)))+'</td><td>'+(d.id?'<a target="_blank" rel="noopener" href="https://crm.topnlab.ru/object-card/'+encodeURIComponent(d.id)+'">'+esc(d.id)+'</a>':"—")+'</td><td><button class="action" data-show="'+esc(d.cad)+'" '+(layers.has(d.cad)?'':'disabled')+'>На карте</button> <button class="action" data-remove="'+esc(d.cad)+'">Убрать</button></td></tr>').join("");
+  document.getElementById("compareNote").textContent="Фильтры сравнения не изменяют подборку карты. Копирование — только показанные строки. Цена за сотку рассчитывается только для участков; «—» — нет данных или расчёт неприменим.";
+}
+
+const EDIT_UNLOCK_KEY = "mapEditorUnlock";
+const EDIT_AUTO_KEY = "mapEditorAutoPick";
+let editorObj = null;
+let editorOpen = false;
+let editorDirty = false;
+function updateSessionPatchButton(){document.getElementById("editPatch").textContent="Скачать патч сессии ("+sessionPatches.size+")";}
+function saveSessionPatch(p){if(!sessionPatches.size && typeof cloudRevision!=="undefined" && cloudRevision!==null)sessionStorage.setItem("cloudDraftRevision",String(cloudRevision));sessionPatches.set(p.cad,p);try{sessionStorage.setItem(SESSION_PATCH_KEY,JSON.stringify([...sessionPatches.values()]));}catch(e){document.getElementById("editStatus").textContent="Память браузера недоступна: скачайте патч перед перезагрузкой.";}updateSessionPatchButton();}
+try {
+  if (sessionStorage.getItem(EDIT_UNLOCK_KEY) === "1" && localStorage.getItem(EDIT_UNLOCK_KEY) !== "1") {
+    localStorage.setItem(EDIT_UNLOCK_KEY, "1");
+  }
+} catch (e) {}
+function editorUnlocked(){
+  try { return localStorage.getItem(EDIT_UNLOCK_KEY) === "1"; } catch (e) { return false; }
+}
+function editorAutoPick(){
+  if (!editorUnlocked() || isTouchDevice()) return false;
+  try { return localStorage.getItem(EDIT_AUTO_KEY) !== "0"; } catch (e) { return true; }
+}
+function syncEditAutoCheckbox(){
+  const cb = document.getElementById("editAutoPick");
+  if (cb) cb.checked = editorAutoPick();
+}
+let cloudPassword='';
+async function editorAskUnlock(){
+ if(cloudPassword)return true;
+ const password=prompt('Пароль владельца (пароль входа в карту):');if(password===null)return false;
+ try{const r=await fetch('/api/registry?action=owner',{headers:{'X-Editor-Password':password},cache:'no-store'});if(!r.ok)throw Error('Вход разрешён только владельцу с его паролем карты.');cloudPassword=password;localStorage.setItem(EDIT_UNLOCK_KEY,'1');return true;}catch(e){alert(e.message);return false;}
+}
+function showEditorPanel(){
+  if (!editorObj) return;
+  fillEditorForm(editorObj);
+  const panel = document.getElementById("editPanel");
+  panel.hidden = false;
+  panel.setAttribute("aria-hidden", "false");
+  editorOpen = true;
+  syncEditAutoCheckbox();
+  document.getElementById("editStatus").textContent = "";
+  document.getElementById("edId").focus();
+}
+function pickObject(d){
+  if (!d) return;
+  if(editorOpen&&editorDirty&&editorObj&&editorObj.cad!==d.cad)applyObjectEditor();
+  editorObj = d;
+  document.querySelectorAll("#list li.sel").forEach(li => li.classList.remove("sel"));
+  const li = document.querySelector(`#list li[data-c="${CSS.escape(d.cad)}"]`);
+  if (li) li.classList.add("sel");
+  if (editorOpen) {
+    fillEditorForm(d);
+    document.getElementById("editStatus").textContent = "";
+    document.getElementById("edId").focus();
+  } else if (editorAutoPick() && cloudPassword) {
+    showEditorPanel();
+  }
+}
+function editPatchFromForm(){
+  const id = document.getElementById("edId").value.trim();
+  const pr = document.getElementById("edPrice").value.trim();
+  return {
+    cad: document.getElementById("edCad").value.trim(),
+    id, price: pr ? Number(pr) : null,
+    vill: document.getElementById("edVill").value.trim(),
+    sheet: document.getElementById("edSheet").value.trim(),
+    kind: document.getElementById("edKind").value.trim(),
+    title: document.getElementById("edTitle").value.trim(),
+    agent: document.getElementById("edAgent").value.trim(),
+    src: document.getElementById("edSrc").value.trim(),
+    avito: document.getElementById("edAvito").value.trim(),
+    ts: new Date().toISOString()
+  };
+}
+function fillEditorForm(d){
+  editorDirty=false;
+  document.getElementById("edCad").value = d.cad || "";
+  document.getElementById("edId").value = d.id || "";
+  document.getElementById("edPrice").value = d.price ?? "";
+  document.getElementById("edVill").value = d.vill || "";
+  document.getElementById("edSheet").value = d.sheet || "";
+  document.getElementById("edKind").value = d.kind || "";
+  const dot = document.getElementById("editColorDot");
+  dot.style.background = colOfPlot(d);
+  dot.title = plotColorKey(d);
+  document.getElementById("edTitle").value = d.title || "";
+  document.getElementById("edAgent").value = d.agent || "";
+  document.getElementById("edSrc").value = d.src || "";
+  document.getElementById("edAvito").value = d.avito || "";
+  const top = document.getElementById("editTopnlab");
+  if (d.id) { top.hidden = false; top.href = "https://crm.topnlab.ru/object-card/" + encodeURIComponent(d.id); }
+  else { top.hidden = true; top.removeAttribute("href"); }
+}
+async function openObjectEditor(){
+  if (!await editorAskUnlock()) return;
+  if (!editorObj) {
+    alert("Сначала кликните объект на карте или в списке.");
+    return;
+  }
+  try { if (localStorage.getItem(EDIT_AUTO_KEY) == null) localStorage.setItem(EDIT_AUTO_KEY, "1"); } catch (e) {}
+  showEditorPanel();
+}
+function closeObjectEditor(){
+  if(editorOpen&&editorDirty)applyObjectEditor();
+  const panel = document.getElementById("editPanel");
+  panel.hidden = true;
+  panel.setAttribute("aria-hidden", "true");
+  editorOpen = false;
+}
+function applyObjectEditor(){
+  if (!editorUnlocked()) return;
+  if (!editorObj) return;
+  const p = editPatchFromForm();
+  editorObj.id = p.id || undefined;
+  editorObj.price = p.price;
+  editorObj.vill = p.vill || undefined;
+  editorObj.sheet = p.sheet;
+  normalizeLocFields(editorObj);
+  editorObj.kind = p.kind || undefined;
+  editorObj.title = p.title;
+  editorObj.agent = p.agent;
+  editorObj.src = p.src;
+  editorObj.avito = p.avito;
+  p.vill = editorObj.vill || "";
+  p.sheet = editorObj.sheet || "";
+  saveSessionPatch(p);
+  editorDirty=false;
+  restylePlot(editorObj);
+  apply();
+  refreshOpenPopups();
+  document.getElementById("editStatus").textContent = "Сохранено в патч сессии. Объектов: "+sessionPatches.size+". Для обновления сайта передайте общий файл.";
+}
+function downloadEditPatch(){
+  if (!editorUnlocked()) return;
+  if(editorDirty)applyObjectEditor();
+  if(!sessionPatches.size){document.getElementById("editStatus").textContent="В сессии пока нет сохранённых изменений.";return;}
+  const payload={version:2,createdAt:new Date().toISOString(),patches:[...sessionPatches.values()]};
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "patch_session_"+new Date().toISOString().replace(/[:.]/g,"-")+"_"+sessionPatches.size+".json";
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+document.getElementById("editForm").addEventListener("input",()=>{if(editorObj){editorDirty=true;document.getElementById("editStatus").textContent="Есть правки: будут включены при применении, смене объекта, закрытии редактора или скачивании.";}});
+updateSessionPatchButton();
+document.getElementById("editApply").addEventListener("click", applyObjectEditor);
+document.getElementById("editPatch").addEventListener("click", downloadEditPatch);
+document.getElementById("editClose").addEventListener("click", closeObjectEditor);
+document.getElementById("editAutoPick").addEventListener("change", e => {
+  if (!editorUnlocked()) { e.target.checked = false; return; }
+  try { localStorage.setItem(EDIT_AUTO_KEY, e.target.checked ? "1" : "0"); } catch (err) {}
+});
+for (const id of ["edVill", "edSheet"]) document.getElementById(id).addEventListener("input", syncEditorLocationPreview);
+syncEditAutoCheckbox();
+document.addEventListener("keydown", e => {
+  if (!e.ctrlKey) return;
+  const k = e.key && e.key.toLowerCase();
+  if (k === "y") { e.preventDefault(); openObjectEditor(); }
+  else if (k === "n") { e.preventDefault(); closeObjectEditor(); }
+});
+const sideEl = document.getElementById("side");
+const toggleBtn = document.getElementById("toggle");
+try { if (localStorage.getItem("mapSideClosed") === "1") sideEl.classList.add("closed"); } catch (e) {}
+
+const map = L.map("map", {preferCanvas:true, boxZoom:false}).setView([44.95, 34.1], 10);
+// Basemaps. Streets come from OpenFreeMap vector tiles (OpenStreetMap data, Russian names, free incl. commercial use).
+// The vector map is drawn in its own pane above the satellite and below our plots; themes recolour it.
+map.createPane("glPane"); map.getPane("glPane").style.zIndex = 350;
+const sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {maxZoom:19, attribution:"© Esri", className:"tf"});
+const satPlain = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {maxZoom:19, attribution:"© Esri", className:"tf"});
+const GL_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+const EMPTY_STYLE = {version:8, sources:{}, layers:[]};
+const glHybrid = (typeof L.maplibreGL !== "function") ? L.layerGroup() : L.maplibreGL({style:EMPTY_STYLE, pane:"glPane", interactive:false, attribution:"© OpenStreetMap, OpenFreeMap"});
+const glScheme = (typeof L.maplibreGL !== "function") ? L.layerGroup() : L.maplibreGL({style:EMPTY_STYLE, pane:"glPane", interactive:false, attribution:"© OpenStreetMap, OpenFreeMap"});
+const hybrid = L.layerGroup([sat, glHybrid]);
+const scheme = L.layerGroup([glScheme]);
+// Diagnostics for the vector basemap: if it cannot start (old tablet browser, no WebGL), say why on screen.
+let usingFallback = false;
+const glDiag = L.control({position:"bottomleft"});
+glDiag.onAdd = () => { const d = L.DomUtil.create("div"); d.id = "glDiag"; d.style.cssText = "display:none;max-width:320px;background:#fff3cd;color:#5c4400;border:1px solid #e0b400;border-radius:6px;padding:6px 8px;font:12px system-ui"; return d; };
+glDiag.addTo(map);
+function useFallback(why){
+  usingFallback = true;
+  console.warn("Vector basemap problem:", why);
+  const el = document.getElementById("glDiag");
+  if (el) { el.style.display = "block"; el.textContent = "Схема OpenStreetMap и подписи гибрида не загрузились: " + why + ". Выберите «Схема 2ГИС» справа вверху."; }
+}
+function webglInfo(){
+  try { const c = document.createElement("canvas"); return c.getContext("webgl2") ? "webgl2" : (c.getContext("webgl") ? "webgl1" : "нет WebGL"); } catch (e) { return "нет WebGL"; }
+}
+if (typeof maplibregl === "undefined" || typeof L.maplibreGL !== "function") useFallback("библиотека карты не загрузилась");
+else if (webglInfo() === "нет WebGL") useFallback("браузер без WebGL");
+// Watch each vector layer: report its own errors and a style that never finishes loading.
+for (const lyr of [glHybrid, glScheme]) lyr.on("add", () => {
+  const gm = lyr.getMaplibreMap && lyr.getMaplibreMap(); if (!gm) return;
+  gm.on("error", ev => useFallback("ошибка карты (" + (ev && ev.error && ev.error.message || "неизвестно") + ", " + webglInfo() + ")"));
+  setTimeout(() => { if (!map.hasLayer(lyr) || !baseStyle) return; let ok = false; try { ok = gm.getStyle().layers.length > 0; } catch (e) {} if (!ok) useFallback("стиль не применился за 25 с (" + webglInfo() + ")"); }, 25000);
+});
+setTimeout(() => { if (!baseStyle && !usingFallback) useFallback("не удалось получить стиль с tiles.openfreemap.org"); }, 25000);let baseStyle = null;
+// Street and place names in Russian where OSM has them; road number shields keep their refs.
+function ruLabels(s){
+  for (const l of s.layers) if (l.type === "symbol" && l.layout && l.layout["text-field"] && !/shield/.test(l.id))
+    l.layout["text-field"] = ["coalesce", ["get","name:ru"], ["get","name"]];
+  return s;
+}
+// mode "hybrid": only roads and labels, drawn over the satellite; mode "scheme": the full street map.
+function buildStyle(mode){
+  let s = ruLabels(JSON.parse(JSON.stringify(baseStyle)));
+  if (mode === "hybrid") {
+    s.layers = s.layers.filter(l => l.type === "symbol" || (l.type === "line" && l["source-layer"] === "transportation"));
+    for (const l of s.layers) {
+      l.paint = l.paint || {};
+      if (l.type === "line") l.paint["line-opacity"] = .55;
+      if (l.type === "symbol") { l.paint["text-color"] = "#ffffff"; l.paint["text-halo-color"] = "rgba(0,0,0,.85)"; l.paint["text-halo-width"] = 1.4; }
+    }
+  }
+  const t = theme(); if (t.vector) s = t.vector(s, mode) || s;
+  return s;
+}
+function refreshGL(){
+  if (!baseStyle) return;
+  for (const [lyr, mode] of [[glHybrid,"hybrid"],[glScheme,"scheme"]]) {
+    const st = buildStyle(mode); lyr.options.style = st;
+    const gm = lyr.getMaplibreMap && lyr.getMaplibreMap(); if (gm) gm.setStyle(st);
+  }
+}
+fetch(GL_STYLE_URL).then(r => r.json()).then(s => { baseStyle = s; refreshGL(); }).catch(e => useFallback("не удалось получить стиль: " + e));
+// 2GIS street map: Russian names, full Crimea coverage, loads from a local file on tablets.
+// Note: direct use of 2GIS tiles is outside their official API terms (grey area, agreed with the owner).
+// Each 2GIS tile is drawn into a canvas so a theme can recolour its pixels (theme.recolor(r,g,b) -> [r,g,b]).
+// 2GIS sends CORS headers, so pixels are readable; without a recolour function the tile is shown as is.
+const RecolorTiles = L.GridLayer.extend({
+  createTile(coords, done){
+    const c = document.createElement("canvas"); c.width = c.height = 256;
+    const img = new Image(); img.crossOrigin = "anonymous";
+    const sub = "123"[(coords.x + coords.y) % 3];
+    img.onload = () => {
+      const ctx = c.getContext("2d", {willReadFrequently:true}); ctx.drawImage(img, 0, 0);
+      const fn = theme().recolor;
+      if (fn) { try { const im = ctx.getImageData(0, 0, 256, 256), p = im.data;
+        for (let i = 0; i < p.length; i += 4) { const o = fn(p[i], p[i+1], p[i+2]); p[i] = o[0]; p[i+1] = o[1]; p[i+2] = o[2]; }
+        ctx.putImageData(im, 0, 0); } catch (e) {} }
+      done(null, c);
+    };
+    img.onerror = () => done(new Error("tile"), c);
+    img.src = `https://tile${sub}.maps.2gis.com/tiles?x=${coords.x}&y=${coords.y}&z=${coords.z}&v=1`;
+    return c;
+  }
+});
+const gis = new RecolorTiles({maxZoom:18, attribution:"© 2ГИС"});
+const BASES = {"Схема 2ГИС": gis, "Гибрид (спутник + улицы)": hybrid, "Схема OpenStreetMap": scheme, "Спутник": satPlain};
+let baseName = "Схема 2ГИС";
+try { const b = localStorage.getItem("mapBase"); if (b && BASES[b]) baseName = b; } catch (e) {}
+BASES[baseName].addTo(map);
+map.on("baselayerchange", e => { try { localStorage.setItem("mapBase", e.name); } catch (err) {} });
+// All other plots of the village from NSPD, drawn under ours as thin outlines.
+const ours = new Set(DATA.map(d => d.cad));
+// One shared canvas: a second canvas renderer would sit on top and swallow clicks meant for the other.
+const nRender = map.getRenderer(L.polygon([[0,0],[0,0],[0,0]]));
+const neigh = L.layerGroup();
+for (const n of NEIGH) {
+  if (!n.g || ours.has(n.cad)) continue;
+  const p = L.geoJSON(n.g, {renderer:nRender, style:() => theme().grid});
+  p.bindPopup(() => nPopup(n, p), {maxWidth:320});
+  p.bindTooltip(n.cad, {sticky:true});
+  neigh.addLayer(p);
+}
+// Site build: the grid is split into square chunks (data/grid/<x>_<y>.js, listed in window.GRID_INDEX);
+// only chunks in view are loaded, and only when zoomed in. Chunks are plain scripts so they also load from a local folder.
+const GRID = window.GRID_INDEX || null;
+const gridLoaded = new Set();
+window.gridChunk = (key, items) => {
+  for (const n of items) {
+    if (!n.g || ours.has(n.cad)) continue;
+    const p = L.geoJSON(n.g, {renderer:nRender, style:() => theme().grid});
+    p.bindPopup(() => nPopup(n, p), {maxWidth:320});
+    p.bindTooltip(n.cad, {sticky:true});
+    neigh.addLayer(p);
+  }
+};
+function loadGridView(){
+  if (!GRID || !gridUserOn || map.getZoom() < GRID_ZOOM) return;
+  const b = map.getBounds(), s = GRID.step;
+  for (let x = Math.floor(b.getWest()/s); x <= Math.floor(b.getEast()/s); x++)
+    for (let y = Math.floor(b.getSouth()/s); y <= Math.floor(b.getNorth()/s); y++) {
+      const k = x + "_" + y; if (!GRID.keys[k] || gridLoaded.has(k)) continue;
+      gridLoaded.add(k);
+      const sc = document.createElement("script"); sc.src = "data/grid/" + k + ".js?v=" + GRID.v; document.head.appendChild(sc);
+    }
+}
+// Grid is shown only at zoom >= 15; userOn tracks the checkbox in the layers control.
+const GRID_ZOOM = 15; let gridUserOn = true, gridSwitching = false;
+function syncGrid(){
+  if (!NEIGH.length && !GRID) return;
+  loadGridView();
+  const want = gridUserOn && map.getZoom() >= GRID_ZOOM, has = map.hasLayer(neigh);
+  gridSwitching = true;
+  if (want && !has) neigh.addTo(map); else if (!want && has) map.removeLayer(neigh);
+  gridSwitching = false;
+}
+map.on("zoomend", syncGrid);
+map.on("moveend", loadGridView);
+map.on("overlayadd", e => { if (e.layer === neigh && !gridSwitching) { gridUserOn = true; syncGrid(); } });
+map.on("overlayremove", e => { if (e.layer === neigh && !gridSwitching) gridUserOn = false; });
+const overlays = (NEIGH.length || GRID) ? {[`Кадастровая сетка (${GRID ? GRID.total : neigh.getLayers().length})`]: neigh} : null;
+const baseCtl = L.control.layers(BASES, overlays, {position:"topright", collapsed:true});
+if(!compactInterface())baseCtl.addTo(map);
+const compactBaseControl=L.control({position:"topright"});
+compactBaseControl.onAdd=()=>{const button=L.DomUtil.create("button","action");button.id="basePickerButton";button.type="button";button.textContent="Карта";button.setAttribute("aria-expanded","false");L.DomEvent.disableClickPropagation(button);button.addEventListener("click",()=>setBasePicker(document.getElementById("basePicker").hidden));return button;};
+if(compactInterface())compactBaseControl.addTo(map);
+const baseChoices=[["Схема 2ГИС","Схема",""],["Спутник","Спутник","satellite"],["Гибрид (спутник + улицы)","Гибрид","hybrid"],["Схема OpenStreetMap","OpenStreetMap","osm"]];
+function renderBaseChoices(){document.getElementById("baseOptions").innerHTML=baseChoices.map(([name,label,style])=>'<button type="button" class="base-option" data-base="'+esc(name)+'" aria-pressed="'+map.hasLayer(BASES[name])+'"><span class="base-swatch '+style+'" aria-hidden="true"></span><span class="base-label">'+label+'</span><span aria-hidden="true">'+(map.hasLayer(BASES[name])?'✓':'')+'</span></button>').join('');document.getElementById("baseGridToggle").checked=gridUserOn;}
+function setBasePicker(open){document.getElementById("basePicker").hidden=!open;document.getElementById("baseBackdrop").hidden=!open||innerWidth>760;const button=document.getElementById("basePickerButton");if(button)button.setAttribute("aria-expanded",String(open));if(open)renderBaseChoices();}
+document.getElementById("baseOptions").addEventListener("click",e=>{const button=e.target.closest("button[data-base]");if(!button)return;for(const layer of Object.values(BASES))if(map.hasLayer(layer))map.removeLayer(layer);BASES[button.dataset.base].addTo(map);map.fire("baselayerchange",{name:button.dataset.base,layer:BASES[button.dataset.base]});setBasePicker(false);});
+for(const id of ["closeBasePicker","baseBackdrop"])document.getElementById(id).addEventListener("click",()=>setBasePicker(false));
+document.getElementById("baseGridToggle").addEventListener("change",e=>{gridUserOn=e.target.checked;syncGrid();});
+window.addEventListener("resize",()=>{if(compactInterface()){baseCtl.remove();if(!document.getElementById("basePickerButton"))compactBaseControl.addTo(map);}else{compactBaseControl.remove();baseCtl.addTo(map);setBasePicker(false);}if(popupObject&&!document.getElementById("objectCard").hidden)openPlotPopup(popupObject);});
+syncGrid();
+
+function nspdLink(lyr){
+  const c = lyr.getBounds().getCenter();
+  const x = c.lng * 20037508.34 / 180;
+  const y = Math.log(Math.tan((90 + c.lat) * Math.PI / 360)) * 20037508.34 / Math.PI;
+  return `https://nspd.gov.ru/map?theme_id=1&coordinate_x=${x.toFixed(1)}&coordinate_y=${y.toFixed(1)}&zoom=18&baseLayerId=235&active_layers=36048`;
+}
+function nPopup(n, lyr){
+  const rows = [
+    ["Площадь", n.area ? fmt(n.area)+" м² ("+(n.area/100).toFixed(1).replace(".",",")+" сот.)" : "—"],
+    ["Кад. стоимость", n.cost ? fmt(n.cost)+" ₽" : "—"],
+    ["Использование", n.use || "—"],
+    ["Адрес", n.addr || "—"]
+  ];
+  return `<div class="pp"><b>${esc(n.cad)}</b> <span style="color:#6b7280">не в нашей базе</span><table>${rows.map(r=>`<tr><td>${r[0]}</td><td>${esc(r[1])}</td></tr>`).join("")}</table><div style="margin-top:6px"><a href="${nspdLink(lyr)}" target="_blank" rel="noopener">Открыть на НСПД</a></div></div>`;
+}
+
+function isClientView(){ return !!(document.getElementById("clientView") && document.getElementById("clientView").checked); }
+function popup(d){
+  const client = isClientView();
+  const priceLabel = !client && d.priceSource === "topnlab" ? "Цена (Топнлаб)" : ((!client && d.avSt === "active") ? "Цена (Авито)" : "Цена");
+  const rows = [
+    [priceLabel, d.price ? fmt(d.price)+" ₽" : "—"],
+    ...(!client && d.basePrice && d.basePrice !== d.price ? [["Цена в базе", fmt(d.basePrice)+" ₽"]] : []),
+    ...(!client && d.avSt && d.avSt !== "active" ? [["Объявление", "снято с Авито или недоступно"]] : []),
+    ["Площадь земли", areaSot(d) == null ? "—" : fmt(Number(d.area))+" м² ("+sotText(d)+" сот.)"],
+    ["Цена за сотку", unitText(d)],
+    ["Кад. стоимость", d.cost ? fmt(d.cost)+" ₽" : "—"],
+    ["Муниципальная территория", territoryName(d.sheet)],
+    ["Населённый пункт", d.vill || "—"],
+    ["Категория", d.cat || "—"],
+    ["Использование", d.use || "—"],
+    ["Адрес", d.addr || "—"]
+  ];
+  if (d.title) rows.unshift(["Объявление", d.title]);
+  // The Topnlab ID opens the object card in the CRM (crm.topnlab.ru/object-card/<id>); it needs a Topnlab login.
+  if (d.id) rows.push(["Топнлаб ID", `<a href="https://crm.topnlab.ru/object-card/${encodeURIComponent(d.id)}" target="_blank" rel="noopener">${esc(d.id)}</a><button class="cadCopy" type="button" data-copy-id="${esc(d.id)}" aria-label="Копировать ID Топнлаба" title="Копировать ID Топнлаба">⧉</button>`, true]);
+  if (d.kind === "дом") rows.push(["Тип", "дом"]);
+  if (d.cadBuilding) rows.push(["КН здания", d.cadBuilding]);
+  // NSPD map centred on the plot with the "land plots" layer (36048) on, so neighbours are visible.
+  let links = "";
+  const L1 = layers.get(d.cad);
+  if (L1) links = `<a href="${nspdLink(L1.lyr)}" target="_blank" rel="noopener">Соседние участки на НСПД</a>`;
+  // Avito is for internal use only; hide it in client view.
+  if (!client) {
+    if (d.avito) links += `${links ? " · " : ""}<a href="${esc(d.avito)}" target="_blank" rel="noopener">Авито</a>`;
+    else links += `${links ? " · " : ""}<span style="color:#6b7280">ссылки на Авито нет</span>`;
+  }
+  return `<div class="pp"><b>${esc(d.cad)}</b><button class="cadCopy" type="button" data-copy-cad="${esc(d.cad)}" aria-label="Копировать кадастровый номер" title="Копировать кадастр">⧉</button>${d.point ? " <span style=\"color:#b45309\">границы не установлены</span>" : ""}<table>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[2] ? r[1] : esc(r[1])}</td></tr>`).join("")}</table><div style="margin-top:6px">${links}</div></div>`;
+}
+
+const layers = new Map();
+for (const d of DATA) {
+  if (!d.g) continue;
+  const lyr = L.geoJSON(d.g, {style:() => theme().ours(colOfPlot(d)), pointToLayer:(f, ll) => L.circleMarker(ll, theme().point(colOfPlot(d)))});
+
+  lyr.bindTooltip(`${d.cad}<br>${d.price ? fmt(d.price/1000)+" тыс. ₽" : ""}`, {sticky:true});
+  // A tiny polygon is invisible at district zoom, so each plot also gets a centre marker.
+  const c = lyr.getBounds().getCenter();
+  const m = L.circleMarker(c, theme().marker(colOfPlot(d)));
+
+  m.bindTooltip(d.cad);
+  const pick = e => {
+    if (Date.now() < suppressPlotClickUntil) return;
+    if (touchSelectionMode || (e.originalEvent && e.originalEvent.shiftKey)) { toggleSelected(d.cad); return; }
+    pickObject(d); openPlotPopup(d);
+  };
+  lyr.on("click", pick);
+  m.on("click", pick);
+  layers.set(d.cad, {d, lyr, m});
+}
+
+const sheets = [...new Set(DATA.map(d=>d.sheet).filter(Boolean))].sort();
+const shSel = document.getElementById("sh");
+for (const s of sheets) shSel.add(new Option(territoryName(s), s));
+if (DATA.some(d=>!d.sheet)) shSel.add(new Option("Территория не уточнена", "__unknownTerritory"));
+const villageSel = document.getElementById("village");
+function syncVillages(){
+  const previous = villageSel.value;
+  villageSel.innerHTML = '<option value="">Все населённые пункты</option>';
+  const values = [...new Set(DATA.filter(d => !shSel.value || (d.sheet || "__unknownTerritory") === shSel.value).map(d => d.vill || "__unknown"))].sort((a,b)=>a.localeCompare(b,"ru"));
+  for (const v of values) villageSel.add(new Option(v === "__unknown" ? "Населённый пункт не уточнён" : localityName(v), v));
+  villageSel.value = values.includes(previous) ? previous : "";
+}
+syncVillages();
+shSel.addEventListener("input", syncVillages);
+const overviewControl = L.control({position:"bottomleft"});
+overviewControl.onAdd = () => {
+  const button = L.DomUtil.create("button", "territory-label");
+  button.type = "button";
+  button.textContent = "← Все территории";
+  button.style.cssText = "transform:none;--territory-color:var(--accent)";
+  L.DomEvent.disableClickPropagation(button);
+  L.DomEvent.on(button, "click", () => {
+    shSel.value = ""; villageSel.value = ""; syncVillages();
+    const shown = apply().filter(d=>layers.has(d.cad));
+    if (shown.length) map.fitBounds(L.latLngBounds(shown.map(d=>layers.get(d.cad).m.getLatLng())), {padding:[30,30],maxZoom:VILLAGE_ZOOM-1,animate:false});
+  });
+  return button;
+};
+overviewControl.addTo(map);
+
+
+// Themes: pick from THEMES (files in themes\), remember the choice, restyle everything in place.
+function applyTheme(){
+  const t = theme(); const r = document.documentElement.style;
+  for (const [k, v] of Object.entries(t.vars || {})) r.setProperty("--" + k, v);
+  r.setProperty("--tileFilter", t.tileFilter || "none");
+  themeStyle.textContent = t.css || "";
+  if (t.fontUrl && !document.querySelector(`link[href="${t.fontUrl}"]`)) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = t.fontUrl; document.head.appendChild(l); }
+  neigh.eachLayer(g => g.setStyle && g.setStyle(t.grid));
+  for (const {d, lyr, m} of layers.values()) {
+    stylePlot({d,lyr,m});
+  }
+  refreshGL();
+  if (map.hasLayer(gis)) gis.redraw();
+  try { localStorage.setItem("mapTheme", themeKey); } catch (e) {}
+}
+if (Object.keys(THEMES).length > 1) {
+  const ctl = L.control({position:"topleft"});
+  ctl.onAdd = () => { const box = L.DomUtil.create("div"); box.id = "themeBox";
+    box.innerHTML = `Тема: <select id="themeSel">${Object.entries(THEMES).map(([k,v]) => `<option value="${k}"${k===themeKey?" selected":""}>${esc(v.label)}</option>`).join("")}</select>`;
+    L.DomEvent.disableClickPropagation(box); return box; };
+  ctl.addTo(map);
+  document.getElementById("themeSel").addEventListener("change", e => {
+    themeKey = e.target.value; applyTheme(); apply();
+    // A theme may prefer a basemap (the cyberpunk one looks like the game map on the street scheme).
+    const pref = theme().preferBase; const want = pref === "gis" ? gis : pref === "scheme" ? (usingFallback ? gis : scheme) : pref === "hybrid" ? hybrid : null;
+    if (want && !map.hasLayer(want)) { for (const b of Object.values(BASES)) if (map.hasLayer(b)) map.removeLayer(b); want.addTo(map); }
+  });
+}
+
+function renderTerritories(shown){
+  const villages = map.getZoom() >= VILLAGE_ZOOM;
+  document.getElementById("hierarchyHint").textContent = villages ? "Цвет участков — по населённым пунктам" : "Цвет участков — по муниципальным территориям";
+  const groups = new Map();
+  for (const d of shown){
+    const key = plotColorKey(d);
+    if (!groups.has(key)) groups.set(key, d);
+  }
+  document.getElementById("legend").innerHTML = [...groups.values()].slice(0,18).map(d=>
+    '<span><span class="dot" style="background:'+colOfPlot(d)+'"></span>'+esc(villages ? (d.vill ? localityName(d.vill) : territoryName(d.sheet)) : territoryName(d.sheet))+'</span>'
+  ).join("");
+}
+map.on("zoomend", ()=>apply());
+const list = document.getElementById("list"), stat = document.getElementById("stat");
+function apply(){
+  const q = document.getElementById("q").value.trim().toLowerCase();
+  const sh = shSel.value;
+  const village = villageSel.value;
+  const [lo, hi] = (document.getElementById("pr").value || "0-1e12").split("-").map(Number);
+  const ranges = readNumericRanges();
+  const shown = [];
+  for (const d of DATA) {
+    const ok = ranges.valid && passesNumeric(d, ranges.area, ranges.unit) && (!onlySelected || selectedCads.has(d.cad)) && (!sh || (d.sheet || "__unknownTerritory")===sh) && (!village || (d.vill || "__unknown") === village) && (d.price||0)>=lo && (d.price||0)<hi &&
+      (!q || d.cad.toLowerCase().includes(q) || String(d.id||"").toLowerCase().includes(q) || (d.addr||"").toLowerCase().includes(q));
+    const L1 = layers.get(d.cad);
+    if (L1) {
+      stylePlot(L1);
+      if (ok) { L1.lyr.addTo(map); L1.m.addTo(map); }
+      else { L1.lyr.remove(); L1.m.remove(); }
+    }
+    if (ok) shown.push(d);
+  }
+  sortObjects(shown, document.getElementById("sortOrder").value);
+  visibleObjects = shown;
+  renderTerritories(shown);
+  const onMap = shown.filter(d=>layers.has(d.cad)).length;
+  stat.textContent = `Показано ${shown.length} из ${DATA.length}, на карте ${onMap}. Данные на ${BUILT}.`;
+  list.innerHTML = shown.map(d => '<li data-c="'+esc(d.cad)+'" class="'+(layers.has(d.cad)?'':'nomap ')+(selectedCads.has(d.cad)?'picked ':'')+(editorObj===d?'sel':'')+'"><input class="pickCheck" type="checkbox" aria-label="Выбрать '+esc(d.cad)+'" '+(selectedCads.has(d.cad)?'checked':'')+'><span class="dot" style="background:'+colOfPlot(d)+'"></span><span class="c">'+esc(d.cad)+'</span> · '+(positive(d.price)?fmt(d.price/1000)+' тыс. ₽':'—')+'<div class="s">'+esc(territoryName(d.sheet))+(d.vill?' · '+esc(d.vill):'')+' · '+sotText(d)+' сот. · '+unitText(d)+(layers.has(d.cad)?(d.point?' · без границ, точка':''):(d.bad?' · номер с ошибкой':' · нет в НСПД'))+'</div></li>').join('');
+  updateSelectionUI();
+  if (document.getElementById("compareDialog").open) renderComparison();
+
+  return shown;
+}
+list.addEventListener("click", e => {
+  const li = e.target.closest("li"); if (!li) return;
+  if (touchSelectionMode || e.shiftKey || e.target.matches("input.pickCheck")) { e.preventDefault(); toggleSelected(li.dataset.c); return; }
+  const L1 = layers.get(li.dataset.c); if (!L1) return;
+  pickObject(L1.d);
+  map.fitBounds(L1.lyr.getBounds(), {maxZoom:18});
+  openPlotPopup(L1.d);
+  if (innerWidth <= 760) setSideClosed(true, false);
+});
+for (const id of ["q","sh","pr","village","areaMin","areaMax","unitMin","unitMax","sortOrder"]) document.getElementById(id).addEventListener("input", apply);
+const clientCb = document.getElementById("clientView");
+try { if (localStorage.getItem("mapClientView") === "1") clientCb.checked = true; } catch (e) {}
+function refreshOpenPopups(){
+  if(popupObject&&!document.getElementById("objectCard").hidden)renderObjectCard(popupObject);
+  if (objectPopup && objectPopup.isOpen() && popupObject) objectPopup.setContent(popup(popupObject));
+  map.eachLayer(l => { if (l.getPopup && l.getPopup() && map.hasLayer(l) && l.isPopupOpen && l.isPopupOpen()) l.openPopup(); });
+}
+clientCb.addEventListener("change", () => {
+  try { localStorage.setItem("mapClientView", clientCb.checked ? "1" : "0"); } catch (e) {}
+  refreshOpenPopups();
+});
+function syncToggle(){
+  const closed = sideEl.classList.contains("closed");
+  toggleBtn.setAttribute("aria-expanded", closed ? "false" : "true");
+  toggleBtn.textContent = closed ? "Список" : "Скрыть";
+  toggleBtn.setAttribute("aria-label", closed ? "Показать список участков" : "Скрыть список участков");
+}
+function setSideClosed(closed, persist){
+  sideEl.classList.toggle("closed", closed);
+  syncToggle();
+  if (persist) { try { localStorage.setItem("mapSideClosed", closed ? "1" : "0"); } catch (e) {} }
+  map.invalidateSize();
+}
+document.getElementById("onlySelected").addEventListener("click",()=>{onlySelected=!onlySelected;apply();});
+document.getElementById("clearSelected").addEventListener("click",()=>{selectedCads.clear();onlySelected=false;apply();});
+document.getElementById("compareSelected").addEventListener("click",()=>{renderComparison();document.getElementById("compareDialog").showModal();});
+document.getElementById("closeCompare").addEventListener("click",()=>{closeColumnFilter();document.getElementById("compareDialog").close();});
+for(const id of ["copySelected","compareCopy"])document.getElementById(id).addEventListener("click",copySelectedCads);
+document.getElementById("compareBody").addEventListener("click",e=>{
+  const remove=e.target.closest("button[data-remove]"),show=e.target.closest("button[data-show]");
+  if(remove){selectedCads.delete(remove.dataset.remove);if(!selectedCads.size)onlySelected=false;apply();return;}
+  if(show){
+    const d=DATA.find(d=>d.cad===show.dataset.show),entry=layers.get(show.dataset.show);
+    if(!entry)return;
+    document.getElementById("compareDialog").close();
+    // Reveal the selected object even if a filter was hiding it.
+    for(const id of ["q","sh","village","pr","areaMin","areaMax","unitMin","unitMax"]) document.getElementById(id).value="";
+    syncVillages();apply();
+    map.fitBounds(entry.lyr.getBounds(),{maxZoom:18});openPlotPopup(d);
+  }
+});
+function isTouchDevice(){return (window.matchMedia && window.matchMedia("(pointer:coarse)").matches) || navigator.maxTouchPoints > 0;}
+function updateTouchTools(){
+  const select=document.getElementById("touchSelect");if(!select)return;
+  select.setAttribute("aria-pressed",String(touchSelectionMode&&!boxSelectionMode));
+  document.getElementById("touchBox").setAttribute("aria-pressed",String(boxSelectionMode));
+  document.getElementById("touchBox").hidden=!touchSelectionMode;
+  document.getElementById("touchDone").hidden=!touchSelectionMode;
+  const compare=document.getElementById("touchCompare");compare.hidden=selectedCads.size<2;compare.textContent="Сравнить ("+selectedCads.size+")";
+  document.getElementById("touchCopy").hidden=!selectedCads.size;
+  document.getElementById("touchModeHint").textContent=boxSelectionMode?"Рамка: протяните одним пальцем. Два пальца — масштаб. «Готово» — вернуться к карте.":touchSelectionMode?"Нажимайте на участки, чтобы выбрать или убрать. Выбрано: "+selectedCads.size:"";
+  map.getContainer().classList.toggle("box-selection-active",boxSelectionMode);
+  document.getElementById("selectionHelp").textContent=isTouchDevice()?"Выбирайте флажками или кнопками «Выбрать» и «Рамка» на карте.":"Shift + клик — выбрать; Shift + перетаскивание — рамка. Также можно отметить флажки.";
+}
+function setTouchSelection(mode){
+  finishSelection(false);
+  touchSelectionMode=mode!=="off";boxSelectionMode=mode==="box";
+  if(touchSelectionMode){map.closePopup();document.getElementById("objectCard").hidden=true;closeObjectEditor();if(innerWidth<=760)setSideClosed(true,false);}
+  updateTouchTools();
+}
+const touchControl=L.control({position:"topright"});
+touchControl.onAdd=()=>{
+  const box=L.DomUtil.create("div");box.id="touchTools";
+  box.innerHTML='<div class="row"><button class="action" type="button" id="touchSelect" aria-pressed="false">Выбрать</button><button class="action" type="button" id="touchBox" aria-pressed="false">Рамка</button><button class="action" type="button" id="touchDone" hidden>Готово</button><button class="action" type="button" id="touchCompare" hidden>Сравнить</button><button class="action" type="button" id="touchCopy" hidden>Копировать</button></div><div id="touchModeHint" role="status" aria-live="polite"></div>';
+  L.DomEvent.disableClickPropagation(box);L.DomEvent.disableScrollPropagation(box);return box;
+};
+touchControl.addTo(map);
+document.getElementById("touchSelect").addEventListener("click",()=>setTouchSelection(touchSelectionMode&&!boxSelectionMode?"off":"tap"));
+document.getElementById("touchBox").addEventListener("click",()=>setTouchSelection(boxSelectionMode?"off":"box"));
+document.getElementById("touchDone").addEventListener("click",()=>setTouchSelection("off"));
+document.getElementById("touchCompare").addEventListener("click",()=>{renderComparison();document.getElementById("compareDialog").showModal();});
+document.getElementById("touchCopy").addEventListener("click",copySelectedCads);
+// No visible editor controls or hints: hold the title for two seconds to use the existing password gate.
+const brand=document.querySelector("#side h1");
+let editorHold=null,editorHoldStart=null;
+function cancelEditorHold(){if(editorHold!==null)clearTimeout(editorHold);editorHold=null;editorHoldStart=null;}
+brand.addEventListener("touchstart",e=>{
+  cancelEditorHold();if(e.touches.length!==1)return;
+  editorHoldStart={x:e.touches[0].clientX,y:e.touches[0].clientY};
+  editorHold=setTimeout(()=>{editorHold=null;editorHoldStart=null;openObjectEditor();},2000);
+},{passive:true});
+brand.addEventListener("touchmove",e=>{if(editorHoldStart&&(e.touches.length!==1||Math.hypot(e.touches[0].clientX-editorHoldStart.x,e.touches[0].clientY-editorHoldStart.y)>12))cancelEditorHold();},{passive:true});
+for(const event of ["touchend","touchcancel"])brand.addEventListener(event,cancelEditorHold,{passive:true});
+brand.addEventListener("contextmenu",e=>{if(isTouchDevice())e.preventDefault();});
+
+// A transparent rectangle with a large clipped shadow leaves its contents at normal brightness.
+const mapElement=map.getContainer();
+let dragSelection=null;
+function startSelection(e,point){
+  const start=map.mouseEventToContainerPoint(point),element=document.createElement("div");
+  element.className="selection-rect";element.hidden=true;mapElement.appendChild(element);
+  dragSelection={start,end:start,element,moved:false,wasDragging:map.dragging.enabled(),userSelect:document.body.style.userSelect};
+  map.dragging.disable();document.body.style.userSelect="none";
+  e.preventDefault();e.stopImmediatePropagation();
+}
+function moveSelection(e,point){
+  if(!dragSelection)return;
+  const drag=dragSelection;drag.end=map.mouseEventToContainerPoint(point);
+  if(drag.start.distanceTo(drag.end)>=5)drag.moved=true;
+  if(drag.moved){
+    drag.element.hidden=false;
+    Object.assign(drag.element.style,{left:Math.min(drag.start.x,drag.end.x)+"px",top:Math.min(drag.start.y,drag.end.y)+"px",width:Math.abs(drag.end.x-drag.start.x)+"px",height:Math.abs(drag.end.y-drag.start.y)+"px"});
+  }
+  e.preventDefault();e.stopImmediatePropagation();
+}
+function finishSelection(commit){
+  if(!dragSelection)return;
+  const drag=dragSelection;dragSelection=null;
+  drag.element.remove();
+  if(drag.wasDragging)map.dragging.enable();
+  document.body.style.userSelect=drag.userSelect;
+  if(drag.moved){
+    suppressPlotClickUntil=Date.now()+500;
+    if(commit){
+      const bounds=L.latLngBounds(map.containerPointToLatLng(drag.start),map.containerPointToLatLng(drag.end));
+      addSelectionInBounds(visibleObjects,bounds,d=>{const entry=layers.get(d.cad);return entry&&entry.m.getLatLng();});
+      onlySelected=selectedCads.size>0;
+      apply();
+    }
+  }
+}
+mapElement.addEventListener("mousedown",e=>{
+  if((!e.shiftKey&&!boxSelectionMode)||e.button!==0||e.target.closest(".leaflet-control,.leaflet-popup"))return;
+  startSelection(e,e);
+},true);
+document.addEventListener("mousemove",e=>moveSelection(e,e),true);
+document.addEventListener("mouseup",e=>{if(dragSelection){e.preventDefault();e.stopImmediatePropagation();finishSelection(true);}},true);
+mapElement.addEventListener("touchstart",e=>{
+  if(e.touches.length>1){finishSelection(false);return;}
+  if(!boxSelectionMode||e.target.closest(".leaflet-control,.leaflet-popup"))return;
+  startSelection(e,e.touches[0]);
+},{capture:true,passive:false});
+document.addEventListener("touchmove",e=>{if(!dragSelection)return;if(e.touches.length!==1){finishSelection(false);return;}moveSelection(e,e.touches[0]);},{capture:true,passive:false});
+document.addEventListener("touchend",e=>{if(!dragSelection)return;e.preventDefault();e.stopImmediatePropagation();suppressPlotClickUntil=Date.now()+500;finishSelection(true);},{capture:true,passive:false});
+document.addEventListener("touchcancel",()=>finishSelection(false),true);
+mapElement.addEventListener("click",e=>{if(Date.now()<suppressPlotClickUntil&&!e.target.closest(".leaflet-control")){e.preventDefault();e.stopImmediatePropagation();}},true);
+window.addEventListener("blur",()=>{finishSelection(false);cancelEditorHold();});
+document.addEventListener("keydown",e=>{
+  if(e.key!=="Escape")return;
+  if(dragSelection){finishSelection(false);return;}
+  if(document.getElementById("compareDialog").open||e.target.closest("input,textarea,select"))return;
+  if(touchSelectionMode){setTouchSelection("off");return;}
+  selectedCads.clear();onlySelected=false;apply();
+});
+updateTouchTools();
+document.getElementById("objectCard").addEventListener("click",e=>{if(e.target.closest("[data-card-close]")){document.getElementById("objectCard").hidden=true;return;}if(e.target.closest("[data-card-details]")){objectDetailsExpanded=!objectDetailsExpanded;renderObjectCard(popupObject);}});
+document.addEventListener("click",e=>{const button=e.target.closest("button[data-copy-cad],button[data-copy-id]");if(!button)return;e.preventDefault();e.stopPropagation();copyOneCad(button.dataset.copyId||button.dataset.copyCad,button,button.dataset.copyId?"ID Топнлаба":"кадастр");},true);
+syncToggle();
+document.querySelector('#compareDialog thead').addEventListener('click',e=>{const button=e.target.closest('button[data-column]');if(button)openColumnFilter(button);});
+document.getElementById('resetCompareFilters').addEventListener('click',()=>{for(const key of Object.keys(comparisonFilters))delete comparisonFilters[key];comparisonSort=null;closeColumnFilter();renderComparison();});
+document.getElementById('compareFilterPanel').addEventListener('input',e=>{if(e.target.id==='filterColumnSearch')renderColumnValues();});
+document.getElementById('compareFilterPanel').addEventListener('change',e=>{
+  if(!columnFilterDraft||columnFilterDraft.numeric)return;
+  if(e.target.id==='columnAll'){const q=document.getElementById('filterColumnSearch').value.toLowerCase();for(const v of columnFilterDraft.values.filter(v=>(v||'(Пустые)').toLowerCase().includes(q))){if(e.target.checked)columnFilterDraft.selected.add(v);else columnFilterDraft.selected.delete(v);}renderColumnValues();}
+  else if(e.target.matches('[data-column-value]')){const v=e.target.dataset.columnValue;if(e.target.checked)columnFilterDraft.selected.add(v);else columnFilterDraft.selected.delete(v);const all=document.getElementById('columnAll');all.indeterminate=true;}
+});
+document.getElementById('compareFilterPanel').addEventListener('click',e=>{
+  if(!columnFilterDraft)return;
+  const draft=columnFilterDraft;
+  if(e.target.closest('[data-column-cancel]')){closeColumnFilter();return;}
+  if(e.target.closest('[data-column-reset]')){delete comparisonFilters[draft.key];closeColumnFilter();renderComparison();return;}
+  const sort=e.target.closest('[data-column-sort]');if(sort){comparisonSort={key:draft.key,direction:sort.dataset.columnSort};closeColumnFilter();renderComparison();return;}
+  if(!e.target.closest('[data-column-apply]'))return;
+  if(draft.numeric){
+    const a=document.getElementById('columnMin'),b=document.getElementById('columnMax'),range=parseRange(a.value,b.value);
+    if(!range.valid||!a.validity.valid||!b.validity.valid){document.getElementById('columnError').textContent='Укажите корректный диапазон: «от» не больше «до».';return;}
+    const empty=document.getElementById('columnEmpty').checked;
+    if(!range.active&&empty)delete comparisonFilters[draft.key];else comparisonFilters[draft.key]={type:'number',min:range.min,max:range.max,empty};
+  }else{if(draft.selected.size===draft.values.length)delete comparisonFilters[draft.key];else comparisonFilters[draft.key]={type:'text',values:new Set(draft.selected)};}
+  closeColumnFilter();renderComparison();
+});
+document.getElementById('compareDialog').addEventListener('click',e=>{if(!e.target.closest('#compareFilterPanel,.column-filter'))closeColumnFilter();});
+document.getElementById('compareDialog').addEventListener('close',closeColumnFilter);
+document.getElementById('compareDialog').addEventListener('cancel',e=>{if(!document.getElementById('compareFilterPanel').hidden){e.preventDefault();closeColumnFilter();}});
+document.querySelector('.compareScroll').addEventListener('scroll',closeColumnFilter);
+
+document.getElementById("listFiltersToggle").addEventListener("click",e=>{const open=sideEl.classList.toggle("filters-open");e.currentTarget.setAttribute("aria-expanded",String(open));e.currentTarget.textContent=open?"Скрыть фильтры":"Показать фильтры";});
+toggleBtn.addEventListener("click", () => setSideClosed(!sideEl.classList.contains("closed"), true));
+applyTheme();
+apply();
+const all = [...layers.values()].map(x=>x.m.getLatLng());
+if (all.length) map.fitBounds(L.latLngBounds(all), {padding:[30,30]});
+
+let cloudRevision=null;const cloudBaseline=new Map();
+async function cloudRequest(action,body){
+ const response=await fetch('/api/registry?action='+action,{method:body?'POST':'GET',cache:'no-store',headers:{'Content-Type':'application/json','X-Editor-Password':cloudPassword},body:body?JSON.stringify({...body,revision:cloudRevision}):undefined});
+ const result=await response.json();if(!response.ok)throw Error(result.error||'Не удалось сохранить.');return result;
+}
+async function loadCloud(){
+ try{const r=await cloudRequest('load');cloudRevision=sessionPatches.size && sessionStorage.getItem("cloudDraftRevision")!==null?Number(sessionStorage.getItem("cloudDraftRevision")):r.revision;
+  for(const d of DATA){if(r.overrides[d.cad])Object.assign(d,r.overrides[d.cad]);cloudBaseline.set(d.cad,{...d});const draft=sessionPatches.get(d.cad);if(draft)for(const f of patchFields)if(Object.hasOwn(draft,f))d[f]=draft[f];normalizeLocFields(d);restylePlot(d);}
+  syncVillages();apply();refreshOpenPopups();
+ }catch(e){document.getElementById('editStatus').textContent='Серверные данные не загружены. '+e.message;}
+}
+async function saveCloud(){
+ if(!await editorAskUnlock())return false;
+ if(editorDirty)applyObjectEditor();if(cloudRevision===null)throw Error('Серверные данные ещё не загружены. Обновите страницу.');
+ const patches=[...sessionPatches.values()].map(p=>({...p}));if(!patches.length)return true;
+ const changes=patches.map(p=>{const result={cad:p.cad},base=cloudBaseline.get(p.cad)||{};for(const f of patchFields)if(Object.hasOwn(p,f)&&(p[f]??'')!==(base[f]??''))result[f]=p[f];return result;});
+ const result=await cloudRequest('save',{patches:changes});for(const p of patches)cloudBaseline.set(p.cad,{...cloudBaseline.get(p.cad),...p});cloudRevision=result.revision;
+ for(const p of patches)if(JSON.stringify(sessionPatches.get(p.cad))===JSON.stringify(p))sessionPatches.delete(p.cad);
+ sessionStorage.setItem(SESSION_PATCH_KEY,JSON.stringify([...sessionPatches.values()]));if(!sessionPatches.size)sessionStorage.removeItem("cloudDraftRevision");updateSessionPatchButton();
+ document.getElementById('editStatus').textContent='Сохранено на сайте: '+patches.length+' объектов. Правки доступны на других устройствах.';return true;
+}
+document.getElementById('cloudSave').onclick=()=>saveCloud().catch(e=>alert(e.message));
+document.getElementById('shareSelected').onclick=async()=>{try{
+ if(!selectedCads.size){alert('Сначала выберите объекты.');return;}
+ if(!await saveCloud())return;
+ const r=await cloudRequest('share',{cads:[...selectedCads]});cloudRevision=r.revision;
+ const url=location.origin+'/share.html#'+r.share.id;
+ prompt('Подборка создана на 10 дней. Скопируйте ссылку:',url);
+ }catch(e){alert(e.message);}};
+const historyDialog=document.createElement('dialog');historyDialog.style.cssText='max-width:640px;width:90%;max-height:80dvh;overflow:auto;border-radius:16px;padding:20px';document.body.append(historyDialog);
+document.getElementById('cloudHistory').onclick=async()=>{try{
+ if(!await editorAskUnlock())return;const r=await cloudRequest('history');
+ historyDialog.innerHTML='<h2>История и подборки</h2><button data-close>Закрыть</button><h3>Последние правки</h3>'+r.history.slice(0,30).map((h,i)=>'<p>'+esc(new Date(h.at).toLocaleString('ru-RU'))+' · '+h.count+' объектов '+(i===0?'<button data-undo="'+h.id+'">Отменить</button>':'')+'</p>').join('')+'<h3>Подборки</h3>'+r.shares.map(s=>'<p>'+esc(new Date(s.createdAt).toLocaleString('ru-RU'))+' · '+s.count+' объектов · до '+esc(new Date(s.expiresAt).toLocaleDateString('ru-RU'))+(s.revoked?' · отключена':Date.parse(s.expiresAt)<=Date.now()?' · истекла':' <button data-link="'+s.id+'">Ссылка</button> <button data-revoke="'+s.id+'">Отключить</button>')+'</p>').join('');historyDialog.showModal();
+ }catch(e){alert(e.message);}};
+historyDialog.onclick=async e=>{const b=e.target.closest('button');if(!b)return;
+ if(b.hasAttribute('data-close')){historyDialog.close();return;}
+ if(b.dataset.link){prompt('Ссылка на подборку',location.origin+'/share.html#'+b.dataset.link);return;}
+ try{if(b.dataset.undo){if(sessionPatches.size||editorDirty)throw Error('Сначала сохраните текущие правки или скачайте патч.');if(!confirm('Отменить последнее серверное изменение?'))return;const r=await cloudRequest('undo',{id:b.dataset.undo});cloudRevision=r.revision;location.reload();}
+ if(b.dataset.revoke){const r=await cloudRequest('revoke',{id:b.dataset.revoke});cloudRevision=r.revision;historyDialog.close();alert('Ссылка отключена.');}}
+ catch(e){alert(e.message);}};
+loadCloud();
+</script>
+</body>
+</html>

@@ -1,9 +1,54 @@
 {
   "headers": [
-    { "source": "/", "headers": [ { "key": "Cache-Control", "value": "private, no-cache, max-age=0, must-revalidate" } ] },
-    { "source": "/index.html", "headers": [ { "key": "Cache-Control", "value": "private, no-cache, max-age=0, must-revalidate" } ] },
-    { "source": "/data/grid/(.*)", "headers": [ { "key": "Cache-Control", "value": "private, max-age=86400" } ] },
-    { "source": "/data/objects.js", "headers": [ { "key": "Cache-Control", "value": "private, max-age=0, must-revalidate" } ] },
-    { "source": "/(.*)", "headers": [ { "key": "X-Robots-Tag", "value": "noindex, nofollow" } ] }
-  ]
+    {
+      "source": "/",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "private, no-cache, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "private, no-cache, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/data/grid/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "private, max-age=86400"
+        }
+      ]
+    },
+    {
+      "source": "/data/objects.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "private, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    }
+  ],
+  "functions": {
+    "api/*.mjs": {
+      "includeFiles": "data/objects.js"
+    }
+  }
 }

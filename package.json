@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "dependencies": {
+    "@vercel/blob": "^2.4.0"
+  },
+  "overrides": {
+    "zod": "^4.6.6"
+  }
+}
