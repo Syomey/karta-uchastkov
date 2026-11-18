@@ -32,7 +32,7 @@ selected.add('hidden');context.visibleObjects=[d];context.updateSelectionUI();as
 context.DATA=[{...d,id:'123',vill:'Доброе'},{...d,cad:'hidden',kind:'дом'}];selected.add('a');context.renderComparison();assert(element('compareBody').innerHTML.includes('object-card/123'));assert(element('compareBody').innerHTML.includes('500000'));
 const entry={d,lyr:{eachLayer(fn){fn({setStyle(s){this.style=s;entry.polygonStyle=s}})}},m:{setStyle(s){entry.markerStyle=s}}};context.stylePlot(entry);assert.equal(entry.polygonStyle.color,'#f59e0b');assert.equal(entry.polygonStyle.fillColor,'#14532d');selected.delete('a');context.stylePlot(entry);assert.equal(entry.polygonStyle.weight,2);assert.equal(entry.markerStyle.radius,5);
 vm.runInContext(template.slice(template.indexOf('document.getElementById("onlySelected").addEventListener'),template.indexOf('function isTouchDevice()')),context);
-vm.runInContext(template.slice(template.indexOf('// A transparent rectangle'),template.lastIndexOf('\nsyncToggle();\ntoggleBtn.addEventListener')),context);
+vm.runInContext(template.slice(template.indexOf('// A transparent rectangle'),template.lastIndexOf('\nsyncToggle();')),context);
 // Actual registered mouse handlers: reverse drag, additive selection, filtered objects only.
 context.visibleObjects=[d,{...d,cad:'b'},{...d,cad:'outside'}];
 for(const [cad,point] of [['a',p(15,15)],['b',p(25,25)],['outside',p(90,90)],['filtered',p(20,20)]])context.layers.set(cad,{m:{getLatLng:()=>point}});
