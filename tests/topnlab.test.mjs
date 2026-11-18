@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as logic from '../lib/topnlab.mjs';
+import {base,merged} from '../lib/store.mjs';
+const original=base(),combined=merged({overrides:{},additions:{'test-new':{cad:'test-new',id:'test'}}});assert.equal(combined.length,original.length+1);assert.deepEqual(combined.slice(0,original.length),original);
 const users={data:[{id:306741,lastname:'Owner',status:0,department_id:56177},{id:22,lastname:'Agent',status:0,department_id:56177},{id:33,status:2,department_id:56177},{id:44,status:0,department_id:999}]};
 const structure={data:[{id:56177,childs:[]}]};const team=logic.scopeUsers(users,structure);assert.equal(team.length,2);assert.equal(logic.scopeUsers({status:'success',data:users},{status:'success',data:structure}).length,2);assert.throws(()=>logic.scopeUsers(users,{data:[]}));
 assert.equal(logic.normalizeCad(' 90.12.040401.154 '),'90:12:040401:154');assert.equal(logic.normalizeCad('90:12:040401:999999999999999'),null);

@@ -6,7 +6,6 @@ export const config = { matcher: "/:path*" };
 export default function middleware(request) {
   const url=new URL(request.url);
   if(["/assets/share.css","/assets/share.js"].includes(url.pathname) || url.pathname.startsWith("/assets/leaflet/") || url.pathname==="/share.html" || (url.pathname==="/api/registry" && url.searchParams.get("action")==="view")) return;
-  if(request.method==="POST" && url.pathname==="/api/topnlab" && url.searchParams.get("action")==="step" && url.searchParams.get("job")===process.env.SYNC_RUN_JOB && process.env.SYNC_RUN_TOKEN && request.headers.get("x-sync-runner")===process.env.SYNC_RUN_TOKEN) return;
   const users = (process.env.MAP_USERS || "").split(",").map(s => s.trim()).filter(Boolean);
   const header = request.headers.get("authorization") || "";
   if (users.length && header.startsWith("Basic ")) {
