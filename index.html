@@ -168,6 +168,19 @@ button.cadCopy{width:38px;min-width:38px;min-height:36px;padding:4px;border:0;ba
   #side.has-selection .list-filters-button{display:block;margin-top:5px;font-size:13px;min-height:36px}
   #side.has-selection:not(.filters-open) header>:not(h1):not(.list-filters-button){display:none}
 }
+
+#compareDialog header{flex-wrap:wrap}
+.column-filter{display:inline-flex;align-items:center;gap:7px;border:0;background:transparent;color:var(--fg);font:inherit;font-weight:600;min-height:36px;padding:4px 0;cursor:pointer}
+.column-filter[aria-pressed="true"]{color:var(--accent)}
+.column-filter .filter-arrow{font-size:11px}
+#compareFilterPanel{position:absolute;z-index:10;width:290px;max-width:calc(100% - 16px);max-height:55dvh;overflow:auto;background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:12px;box-shadow:0 6px 24px #0004}
+#compareFilterPanel[hidden]{display:none!important}
+.filter-sort-row,.filter-footer{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}
+.filter-values{max-height:170px;overflow:auto;margin:8px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.filter-value{display:flex;align-items:center;gap:8px;min-height:32px;font-size:13px;overflow-wrap:anywhere}
+.filter-value input{width:17px;height:17px;min-height:17px;padding:0;flex-shrink:0}
+#filterColumnSearch{margin-top:8px}
+@media(pointer:coarse){.column-filter{min-height:44px}.filter-value{min-height:42px}}
 </style>
 </head>
 <body>
@@ -249,9 +262,9 @@ button.cadCopy{width:38px;min-width:38px;min-height:36px;padding:4px;border:0;ba
     </div>
   </div>
 </div>
-<dialog id="compareDialog" aria-labelledby="compareTitle"><header><h2 id="compareTitle">Сравнение объектов</h2><button type="button" class="action" id="compareCopy" disabled>Копировать</button><button type="button" class="action" id="closeCompare">Закрыть</button></header><div class="compareScroll"><table><thead><tr><th>Кадастр</th><th>Населённый пункт</th><th>Земля, сот.</th><th>Цена, ₽</th><th>₽/сот.</th><th>Топнлаб</th><th>Действия</th></tr></thead><tbody id="compareBody"></tbody></table></div><div id="compareNote"></div></dialog>
-<script src="data/objects.js?v=202611181414"></script>
-<script src="data/grid/index.js?v=202611181414"></script>
+<dialog id="compareDialog" aria-labelledby="compareTitle"><header><h2 id="compareTitle">Сравнение объектов</h2><button type="button" class="action" id="resetCompareFilters">Сбросить фильтры</button><button type="button" class="action" id="compareCopy" disabled>Копировать</button><button type="button" class="action" id="closeCompare">Закрыть</button></header><div id="compareFilterPanel" hidden role="region" aria-label="Фильтр столбца"></div><div class="compareScroll"><table><thead><tr><th><button type="button" class="column-filter" data-column="cad" aria-label="Фильтр и сортировка: Кадастр" aria-expanded="false" aria-pressed="false">Кадастр<span class="filter-arrow" aria-hidden="true">▼</span></button></th><th><button type="button" class="column-filter" data-column="vill" aria-label="Фильтр и сортировка: Населённый пункт" aria-expanded="false" aria-pressed="false">Населённый пункт<span class="filter-arrow" aria-hidden="true">▼</span></button></th><th><button type="button" class="column-filter" data-column="area" aria-label="Фильтр и сортировка: Земля, сот." aria-expanded="false" aria-pressed="false">Земля, сот.<span class="filter-arrow" aria-hidden="true">▼</span></button></th><th><button type="button" class="column-filter" data-column="price" aria-label="Фильтр и сортировка: Цена, ₽" aria-expanded="false" aria-pressed="false">Цена, ₽<span class="filter-arrow" aria-hidden="true">▼</span></button></th><th><button type="button" class="column-filter" data-column="unit" aria-label="Фильтр и сортировка: ₽/сот." aria-expanded="false" aria-pressed="false">₽/сот.<span class="filter-arrow" aria-hidden="true">▼</span></button></th><th><button type="button" class="column-filter" data-column="id" aria-label="Фильтр и сортировка: Топнлаб" aria-expanded="false" aria-pressed="false">Топнлаб<span class="filter-arrow" aria-hidden="true">▼</span></button></th><th>Действия</th></tr></thead><tbody id="compareBody"></tbody></table></div><div id="compareNote"></div></dialog>
+<script src="data/objects.js?v=202611181422"></script>
+<script src="data/grid/index.js?v=202611181422"></script>
 <script>
 const THEMES = {};
 // Theme: обычная. A theme is one object in THEMES; every file in themes\ is inlined by build.ps1.
@@ -371,7 +384,7 @@ for (const d of DATA) {
 }
 const NEIGH = [];
 const BUILT = "18.11.2026";
-const POS_OF = {"Дубки":"Перовское","Доброе":"Добровское","Трудолюбово":"Чистенское","Запрудное":"г.о. Алушта","Клёновка":"Донское","Молочное":"Перовское","Украинка":"Перовское","Константиновка":"Перовское","Ана-Юрт":"Трудовское","Рыбачье":"г.о. Алушта","Скворцово":"Скворцовское","Верхняя Кутузовка":"г.о. Алушта","Трудовое":"Трудовское","Лозовое":"Добровское","Строгановка":"Трудовское","Малореченское":"г.о. Алушта","Андрусово":"Добровское","Винницкое":"Николаевское","Петропавловка":"Добровское","Лучистое":"г.о. Алушта","Партизанское":"Перовское","Заречное":"Добровское","Лаванда":"г.о. Алушта","Нижняя Кутузовка":"г.о. Алушта","Мирное":"Мирновское","Розовый":"г.о. Алушта","Дмитрово":"Донское","Краснолесье":"Добровское","Привольное":"Добровское","Клиновка":"Перовское","Мраморное":"Добровское","Ключи":"Перовское","Партенит":"г.о. Алушта","Красновка":"Мазанское","Урожайное":"Трудовское","Перевальное":"Добровское","Ивановка":"Трудовское","Николаевка":"Николаевское","Веселое":"Перовское","Солнечное":"Молодежненское","Чистенькое":"Чистенское","Чайковское":"Добровское","Солнечногорское":"г.о. Алушта","Тепловка":"Николаевское","Молодежное":"Молодежненское","Малый Маяк":"г.о. Алушта","Айкаван":"Трудовское","Ферсманово":"Добровское","Денисовка":"Трудовское","Новозбурьевка":"Чистенское","Перово":"Перовское","Левадки":"Чистенское","Изобильное":"г.о. Алушта","Нижнее Запрудное":"г.о. Алушта","Алушта":"г.о. Алушта","Фонтаны":"Чистенское","Акрополис":"Трудовское","Дружное":"Трудовское","Мазанка":"Мазанское","Пионерское":"Добровское","Нижнее":"г.о. Алушта","Семидворье":"г.о. Алушта","Трехпрудное":"Чистенское","Лазаревка":"Трудовское","Виноградное":"г.о. Алушта","Генеральское":"г.о. Алушта","Камышинка":"Чистенское","Чайка":"г.о. Алушта","Пушкино":"г.о. Алушта","Лазурное":"г.о. Алушта","Кипарисное":"г.о. Алушта","Белоглинка":"Мирновское","Каштановое":"Перовское","Обрыв":"Перовское","Лавровое":"г.о. Алушта","Утёс":"г.о. Алушта"};
+const POS_OF = {"Рыбачье":"г.о. Алушта","Заречное":"Добровское","Дмитрово":"Донское","Дружное":"Трудовское","Тепловка":"Николаевское","Доброе":"Добровское","Нижнее":"г.о. Алушта","Каштановое":"Перовское","Петропавловка":"Добровское","Чайковское":"Добровское","Скворцово":"Скворцовское","Молодежное":"Молодежненское","Малый Маяк":"г.о. Алушта","Акрополис":"Трудовское","Лазурное":"г.о. Алушта","Генеральское":"г.о. Алушта","Мраморное":"Добровское","Константиновка":"Перовское","Клиновка":"Перовское","Привольное":"Добровское","Малореченское":"г.о. Алушта","Красновка":"Мазанское","Трудолюбово":"Чистенское","Урожайное":"Трудовское","Обрыв":"Перовское","Ана-Юрт":"Трудовское","Левадки":"Чистенское","Солнечногорское":"г.о. Алушта","Перово":"Перовское","Фонтаны":"Чистенское","Лозовое":"Добровское","Семидворье":"г.о. Алушта","Мазанка":"Мазанское","Белоглинка":"Мирновское","Винницкое":"Николаевское","Алушта":"г.о. Алушта","Новозбурьевка":"Чистенское","Солнечное":"Молодежненское","Мирное":"Мирновское","Кипарисное":"г.о. Алушта","Перевальное":"Добровское","Денисовка":"Трудовское","Ферсманово":"Добровское","Ивановка":"Трудовское","Розовый":"г.о. Алушта","Партизанское":"Перовское","Пушкино":"г.о. Алушта","Андрусово":"Добровское","Верхняя Кутузовка":"г.о. Алушта","Камышинка":"Чистенское","Запрудное":"г.о. Алушта","Трудовое":"Трудовское","Лучистое":"г.о. Алушта","Лазаревка":"Трудовское","Молочное":"Перовское","Николаевка":"Николаевское","Строгановка":"Трудовское","Трехпрудное":"Чистенское","Нижняя Кутузовка":"г.о. Алушта","Партенит":"г.о. Алушта","Чайка":"г.о. Алушта","Утёс":"г.о. Алушта","Ключи":"Перовское","Клёновка":"Донское","Дубки":"Перовское","Нижнее Запрудное":"г.о. Алушта","Пионерское":"Добровское","Краснолесье":"Добровское","Лаванда":"г.о. Алушта","Виноградное":"г.о. Алушта","Айкаван":"Трудовское","Лавровое":"г.о. Алушта","Веселое":"Перовское","Изобильное":"г.о. Алушта","Украинка":"Перовское","Чистенькое":"Чистенское"};
 const COLORS = {"Трудовское":"#e11d48","Перовское":"#2563eb","Мирновское":"#16a34a","Чистенское":"#d97706","Добровское":"#7c3aed"};
 const PALETTE = ["#0891b2","#db2777","#65a30d","#ea580c","#4f46e5","#0d9488","#b45309","#9333ea","#dc2626","#0284c7","#ca8a04","#059669"];
 const col = s => { if (COLORS[s]) return COLORS[s]; let h = 0; for (const ch of String(s||"")) h = (h*31 + ch.charCodeAt(0)) >>> 0; return PALETTE[h % PALETTE.length]; };
@@ -501,7 +514,8 @@ function toggleSelected(cad){
   apply();
 }
 function selectedCadText(){
-  return sortObjects(DATA.filter(d=>selectedCads.has(d.cad)),document.getElementById("sortOrder").value).map(d=>d.cad).join("\n");
+  const rows=document.getElementById("compareDialog").open?comparisonRows():sortObjects(DATA.filter(d=>selectedCads.has(d.cad)),document.getElementById("sortOrder").value);
+  return rows.map(d=>d.cad).join("\n");
 }
 async function copySelectedCads(){
   const text=selectedCadText();if(!text)return;
@@ -563,11 +577,53 @@ function updateSelectionUI(){
   document.getElementById("listSummary").textContent="Объектов в списке: "+visibleObjects.length+(visibleObjects.length>1?" · прокрутите вниз ↓":"");
   updateTouchTools();
 }
+const comparisonFilters=Object.create(null);
+let comparisonSort=null,columnFilterDraft=null;
+function comparisonValue(d,key){
+  if(key==='area')return areaSot(d);if(key==='price')return positive(d.price);if(key==='unit')return pricePerSot(d);
+  return String(d[key]||'').trim();
+}
+function comparisonRows(){
+  const rows=DATA.filter(d=>selectedCads.has(d.cad)&&Object.entries(comparisonFilters).every(([key,filter])=>{
+    const value=comparisonValue(d,key);
+    if(filter.type==='text')return filter.values.has(value);
+    return value==null?filter.empty:value>=filter.min&&value<=filter.max;
+  }));
+  if(comparisonSort){const {key,direction}=comparisonSort;rows.sort((a,b)=>{const av=comparisonValue(a,key),bv=comparisonValue(b,key),ae=av==null||av==='',be=bv==null||bv==='';if(ae)return be?0:1;if(be)return -1;const diff=typeof av==='number'?av-bv:av.localeCompare(bv,'ru',{numeric:true});return diff*(direction==='asc'?1:-1);});}
+  else sortObjects(rows,document.getElementById('sortOrder').value);
+  return rows;
+}
+function closeColumnFilter(){document.getElementById('compareFilterPanel').hidden=true;document.querySelectorAll('.column-filter').forEach(b=>b.setAttribute('aria-expanded','false'));columnFilterDraft=null;}
+function openColumnFilter(button){
+  const key=button.dataset.column,panel=document.getElementById('compareFilterPanel');
+  if(columnFilterDraft&&columnFilterDraft.key===key){closeColumnFilter();return;}
+  closeColumnFilter();
+  const numeric=['area','price','unit'].includes(key),old=comparisonFilters[key];
+  const values=[...new Set(DATA.filter(d=>selectedCads.has(d.cad)).map(d=>String(comparisonValue(d,key)??'')))].sort((a,b)=>a.localeCompare(b,'ru',{numeric:true}));
+  columnFilterDraft={key,numeric,values,selected:new Set(old&&old.type==='text'?old.values:values)};
+  panel.innerHTML='<strong>'+esc(button.textContent.replace(/[▼▲●]/g,'').trim())+'</strong><div class="filter-sort-row"><button class="action" type="button" data-column-sort="asc">По возрастанию ↑</button><button class="action" type="button" data-column-sort="desc">По убыванию ↓</button></div>'+
+  (numeric?'<label class="filterLabel">От<input id="columnMin" type="number" min="0" step="any" value="'+(old&&Number.isFinite(old.min)?old.min:'')+'"></label><label class="filterLabel">До<input id="columnMax" type="number" min="0" step="any" value="'+(old&&Number.isFinite(old.max)?old.max:'')+'"></label><label class="filter-value"><input id="columnEmpty" type="checkbox" '+(!old||old.empty?'checked':'')+'>Включать пустые значения</label>':'<input id="filterColumnSearch" type="search" placeholder="Поиск значений" aria-label="Поиск значений столбца"><label class="filter-value"><input id="columnAll" type="checkbox">Выбрать все найденные</label><div class="filter-values" id="columnValues"></div>')+
+  '<div id="columnError" role="alert" style="color:#b45309;font-size:12px"></div><div class="filter-footer"><button class="action" type="button" data-column-apply>Применить</button><button class="action" type="button" data-column-reset>Очистить</button><button class="action" type="button" data-column-cancel>Отмена</button></div>';
+  panel.hidden=false;button.setAttribute('aria-expanded','true');
+  const br=button.getBoundingClientRect(),dr=document.getElementById('compareDialog').getBoundingClientRect();
+  panel.style.left=Math.max(8,Math.min(br.left-dr.left,dr.width-306))+'px';panel.style.top=Math.max(8,br.bottom-dr.top)+'px';
+  if(!numeric){renderColumnValues();document.getElementById('filterColumnSearch').focus();}else document.getElementById('columnMin').focus();
+}
+function renderColumnValues(){
+  if(!columnFilterDraft||columnFilterDraft.numeric)return;
+  const draft=columnFilterDraft,q=document.getElementById('filterColumnSearch').value.toLowerCase();
+  const values=draft.values.filter(v=>(v||'(Пустые)').toLowerCase().includes(q));
+  document.getElementById('columnValues').innerHTML=values.map(v=>'<label class="filter-value"><input type="checkbox" data-column-value="'+esc(v)+'" '+(draft.selected.has(v)?'checked':'')+'><span>'+esc(v||'(Пустые)')+'</span></label>').join('')||(q?'Нет совпадений':'Нет значений');
+  const all=document.getElementById('columnAll'),count=values.filter(v=>draft.selected.has(v)).length;all.checked=values.length>0&&count===values.length;all.indeterminate=count>0&&count<values.length;
+}
+
 function renderComparison(){
-  const rows=sortObjects(DATA.filter(d=>selectedCads.has(d.cad)),document.getElementById("sortOrder").value);
-  document.getElementById("compareTitle").textContent="Сравнение объектов: "+rows.length;
+  const rows=comparisonRows();
+  document.getElementById("compareTitle").textContent="Сравнение объектов: "+rows.length+" из "+selectedCads.size;
+  document.querySelectorAll(".column-filter").forEach(button=>{const key=button.dataset.column,active=!!comparisonFilters[key];button.setAttribute("aria-pressed",String(active));button.querySelector(".filter-arrow").textContent=active?"●":comparisonSort&&comparisonSort.key===key?(comparisonSort.direction==="asc"?"▲":"▼"):"▼";});
+  document.getElementById("compareCopy").disabled=!rows.length;
   document.getElementById("compareBody").innerHTML=rows.map(d=>'<tr><td>'+esc(d.cad)+'</td><td>'+esc(d.vill||"—")+'</td><td>'+sotText(d)+'</td><td>'+(positive(d.price)?fmt(d.price):"—")+'</td><td>'+(pricePerSot(d)==null?"—":fmt(pricePerSot(d)))+'</td><td>'+(d.id?'<a target="_blank" rel="noopener" href="https://crm.topnlab.ru/object-card/'+encodeURIComponent(d.id)+'">'+esc(d.id)+'</a>':"—")+'</td><td><button class="action" data-show="'+esc(d.cad)+'" '+(layers.has(d.cad)?'':'disabled')+'>На карте</button> <button class="action" data-remove="'+esc(d.cad)+'">Убрать</button></td></tr>').join("");
-  document.getElementById("compareNote").textContent="Все выбранные объекты, включая скрытые фильтрами. Цена за сотку рассчитывается только для участков; «—» означает, что расчёт неприменим или данных недостаточно.";
+  document.getElementById("compareNote").textContent="Фильтры сравнения не изменяют подборку карты. Копирование — только показанные строки. Цена за сотку рассчитывается только для участков; «—» — нет данных или расчёт неприменим.";
 }
 
 const EDIT_UNLOCK_KEY = "mapEditorUnlock";
@@ -1107,7 +1163,7 @@ function setSideClosed(closed, persist){
 document.getElementById("onlySelected").addEventListener("click",()=>{onlySelected=!onlySelected;apply();});
 document.getElementById("clearSelected").addEventListener("click",()=>{selectedCads.clear();onlySelected=false;apply();});
 document.getElementById("compareSelected").addEventListener("click",()=>{renderComparison();document.getElementById("compareDialog").showModal();});
-document.getElementById("closeCompare").addEventListener("click",()=>document.getElementById("compareDialog").close());
+document.getElementById("closeCompare").addEventListener("click",()=>{closeColumnFilter();document.getElementById("compareDialog").close();});
 for(const id of ["copySelected","compareCopy"])document.getElementById(id).addEventListener("click",copySelectedCads);
 document.getElementById("compareBody").addEventListener("click",e=>{
   const remove=e.target.closest("button[data-remove]"),show=e.target.closest("button[data-show]");
@@ -1229,6 +1285,34 @@ updateTouchTools();
 document.getElementById("objectCard").addEventListener("click",e=>{if(e.target.closest("[data-card-close]")){document.getElementById("objectCard").hidden=true;return;}if(e.target.closest("[data-card-details]")){objectDetailsExpanded=!objectDetailsExpanded;renderObjectCard(popupObject);}});
 document.addEventListener("click",e=>{const button=e.target.closest("button[data-copy-cad],button[data-copy-id]");if(!button)return;e.preventDefault();e.stopPropagation();copyOneCad(button.dataset.copyId||button.dataset.copyCad,button,button.dataset.copyId?"ID Топнлаба":"кадастр");},true);
 syncToggle();
+document.querySelector('#compareDialog thead').addEventListener('click',e=>{const button=e.target.closest('button[data-column]');if(button)openColumnFilter(button);});
+document.getElementById('resetCompareFilters').addEventListener('click',()=>{for(const key of Object.keys(comparisonFilters))delete comparisonFilters[key];comparisonSort=null;closeColumnFilter();renderComparison();});
+document.getElementById('compareFilterPanel').addEventListener('input',e=>{if(e.target.id==='filterColumnSearch')renderColumnValues();});
+document.getElementById('compareFilterPanel').addEventListener('change',e=>{
+  if(!columnFilterDraft||columnFilterDraft.numeric)return;
+  if(e.target.id==='columnAll'){const q=document.getElementById('filterColumnSearch').value.toLowerCase();for(const v of columnFilterDraft.values.filter(v=>(v||'(Пустые)').toLowerCase().includes(q))){if(e.target.checked)columnFilterDraft.selected.add(v);else columnFilterDraft.selected.delete(v);}renderColumnValues();}
+  else if(e.target.matches('[data-column-value]')){const v=e.target.dataset.columnValue;if(e.target.checked)columnFilterDraft.selected.add(v);else columnFilterDraft.selected.delete(v);const all=document.getElementById('columnAll');all.indeterminate=true;}
+});
+document.getElementById('compareFilterPanel').addEventListener('click',e=>{
+  if(!columnFilterDraft)return;
+  const draft=columnFilterDraft;
+  if(e.target.closest('[data-column-cancel]')){closeColumnFilter();return;}
+  if(e.target.closest('[data-column-reset]')){delete comparisonFilters[draft.key];closeColumnFilter();renderComparison();return;}
+  const sort=e.target.closest('[data-column-sort]');if(sort){comparisonSort={key:draft.key,direction:sort.dataset.columnSort};closeColumnFilter();renderComparison();return;}
+  if(!e.target.closest('[data-column-apply]'))return;
+  if(draft.numeric){
+    const a=document.getElementById('columnMin'),b=document.getElementById('columnMax'),range=parseRange(a.value,b.value);
+    if(!range.valid||!a.validity.valid||!b.validity.valid){document.getElementById('columnError').textContent='Укажите корректный диапазон: «от» не больше «до».';return;}
+    const empty=document.getElementById('columnEmpty').checked;
+    if(!range.active&&empty)delete comparisonFilters[draft.key];else comparisonFilters[draft.key]={type:'number',min:range.min,max:range.max,empty};
+  }else{if(draft.selected.size===draft.values.length)delete comparisonFilters[draft.key];else comparisonFilters[draft.key]={type:'text',values:new Set(draft.selected)};}
+  closeColumnFilter();renderComparison();
+});
+document.getElementById('compareDialog').addEventListener('click',e=>{if(!e.target.closest('#compareFilterPanel,.column-filter'))closeColumnFilter();});
+document.getElementById('compareDialog').addEventListener('close',closeColumnFilter);
+document.getElementById('compareDialog').addEventListener('cancel',e=>{if(!document.getElementById('compareFilterPanel').hidden){e.preventDefault();closeColumnFilter();}});
+document.querySelector('.compareScroll').addEventListener('scroll',closeColumnFilter);
+
 document.getElementById("listFiltersToggle").addEventListener("click",e=>{const open=sideEl.classList.toggle("filters-open");e.currentTarget.setAttribute("aria-expanded",String(open));e.currentTarget.textContent=open?"Скрыть фильтры":"Показать фильтры";});
 toggleBtn.addEventListener("click", () => setSideClosed(!sideEl.classList.contains("closed"), true));
 applyTheme();

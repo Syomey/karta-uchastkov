@@ -1,0 +1,18 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const html=fs.readFileSync(require('path').join(__dirname,'..','index.html'),'utf8');
+const helpers=html.slice(html.indexOf('// Selection/filter helpers:'),html.indexOf('const EDIT_UNLOCK_KEY'));
+const data=[{cad:'a',vill:'Доброе',id:'100',kind:'участок',area:800,price:4000000},{cad:'b',vill:'Николаевка',id:'200',kind:'участок',area:400,price:2000000},{cad:'c',vill:'Доброе',id:'300',kind:'дом',area:800,price:7000000},{cad:'d',vill:'',id:'',kind:'',area:null,price:null}];
+const selected=new Set(data.map(d=>d.cad));
+const context={DATA:data,selectedCads:selected,document:{getElementById:id=>id==='compareDialog'?{open:true}:{value:'default'}}};
+vm.createContext(context);vm.runInContext(helpers+'\nthis.api={filter:(key,value)=>comparisonFilters[key]=value,sort:(key,direction)=>comparisonSort={key,direction},reset:()=>{for(const key of Object.keys(comparisonFilters))delete comparisonFilters[key];comparisonSort=null;}};',context);
+const rows=()=>context.comparisonRows().map(d=>d.cad).join(',');
+assert.equal(rows(),'a,b,c,d');
+context.api.filter('vill',{type:'text',values:new Set(['Николаевка'])});assert.equal(rows(),'b');
+context.api.filter('area',{type:'number',min:4,max:4,empty:false});assert.equal(rows(),'b');
+context.api.filter('price',{type:'number',min:0,max:1,empty:false});assert.equal(rows(),'');
+context.api.reset();context.api.filter('unit',{type:'number',min:500000,max:500000,empty:false});assert.equal(rows(),'a,b');assert.equal(context.selectedCadText(),'a\nb');
+context.api.filter('unit',{type:'number',min:500000,max:500000,empty:true});assert.equal(rows(),'a,b,c,d');
+context.api.reset();context.api.sort('price','desc');assert.equal(rows(),'c,a,b,d');context.api.sort('price','asc');assert.equal(rows(),'b,a,c,d');
+context.api.reset();context.api.filter('id',{type:'text',values:new Set([''])});assert.equal(rows(),'d');context.api.filter('cad',{type:'text',values:new Set()});assert.equal(rows(),'');
+assert.equal(selected.size,4);
+console.log('PASS: combined column filters, exact boundaries, empty values, unit price applicability, sorting, filtered copy and independent map selection.');
