@@ -234,7 +234,7 @@ button.cadCopy{width:38px;min-width:38px;min-height:36px;padding:4px;border:0;ba
   <header>
     <div>
       <h2 id="editTitle">Редактор объекта</h2>
-      <div class="meta">Ctrl+Y · закрыть Ctrl+N</div>
+      <div class="meta">Ctrl+Y · закрыть Ctrl+Alt+Y</div>
     </div>
     <button type="button" id="editClose" aria-label="Закрыть редактор">×</button>
   </header>
@@ -689,8 +689,8 @@ syncEditAutoCheckbox();
 document.addEventListener("keydown", e => {
   if (!e.ctrlKey) return;
   const k = e.key && e.key.toLowerCase();
-  if (k === "y") { e.preventDefault(); openObjectEditor(); }
-  else if (k === "n") { e.preventDefault(); closeObjectEditor(); }
+  const isY = e.code === "KeyY" || k === "y";
+  if (isY) { e.preventDefault(); if (e.altKey) closeObjectEditor(); else openObjectEditor(); }
 });
 const sideEl = document.getElementById("side");
 const toggleBtn = document.getElementById("toggle");

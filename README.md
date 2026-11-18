@@ -72,3 +72,5 @@ vadim:придумайте-пароль,zakazchik:другой-пароль
 Исходный шаблон сохранён в source/template.html; при пересборке актуализируйте karta/template.html из него. Проверка API: node tests/registry.test.mjs.
 
 Оформление публичной подборки: share.html + assets/share.css + assets/share.js. Карта, центр каждой геометрии с постоянной точкой, список/поиск и компактная карточка; на телефоне нижняя панель. Проверка реального Leaflet и мобильного режима: node tests/share.test.cjs.
+
+Клавиши редактора: Ctrl+Y — открыть, Ctrl+Alt+Y — закрыть. Ctrl+N больше не перехватывается.
