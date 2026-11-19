@@ -1060,7 +1060,12 @@ function setSideClosed(closed, persist){
   map.invalidateSize();
 }
 document.getElementById("onlySelected").addEventListener("click",()=>{onlySelected=!onlySelected;apply();});
-document.getElementById("clearSelected").addEventListener("click",()=>{selectedCads.clear();onlySelected=false;apply();});
+function clearSelection(){
+  selectedCads.clear();
+  onlySelected=false;
+  apply();
+}
+document.getElementById("clearSelected").addEventListener("click",clearSelection);
 document.getElementById("compareSelected").addEventListener("click",()=>{renderComparison();document.getElementById("compareDialog").showModal();});
 document.getElementById("closeCompare").addEventListener("click",()=>{closeColumnFilter();document.getElementById("compareDialog").close();});
 for(const id of ["copySelected","compareCopy"])document.getElementById(id).addEventListener("click",copySelectedCads);
@@ -1086,6 +1091,7 @@ function updateTouchTools(){
   document.getElementById("touchDone").hidden=!touchSelectionMode;
   const compare=document.getElementById("touchCompare");compare.hidden=selectedCads.size<2;compare.textContent="Сравнить ("+selectedCads.size+")";
   document.getElementById("touchCopy").hidden=!selectedCads.size;
+  document.getElementById("touchClear").hidden=!selectedCads.size;
   document.getElementById("touchModeHint").textContent=boxSelectionMode?"Рамка: протяните одним пальцем. Два пальца — масштаб. «Готово» — вернуться к карте.":touchSelectionMode?"Нажимайте на участки, чтобы выбрать или убрать. Выбрано: "+selectedCads.size:"";
   map.getContainer().classList.toggle("box-selection-active",boxSelectionMode);
   document.getElementById("selectionHelp").textContent=isTouchDevice()?"Выбирайте флажками или кнопками «Выбрать» и «Рамка» на карте.":"Shift + клик — выбрать; Shift + перетаскивание — рамка. Также можно отметить флажки.";
@@ -1099,13 +1105,14 @@ function setTouchSelection(mode){
 const touchControl=L.control({position:"topright"});
 touchControl.onAdd=()=>{
   const box=L.DomUtil.create("div");box.id="touchTools";
-  box.innerHTML='<div class="row"><button class="action" type="button" id="touchSelect" aria-pressed="false">Выбрать</button><button class="action" type="button" id="touchBox" aria-pressed="false">Рамка</button><button class="action" type="button" id="touchDone" hidden>Готово</button><button class="action" type="button" id="touchCompare" hidden>Сравнить</button><button class="action" type="button" id="touchCopy" hidden>Копировать</button></div><div id="touchModeHint" role="status" aria-live="polite"></div>';
+  box.innerHTML='<div class="row"><button class="action" type="button" id="touchSelect" aria-pressed="false">Выбрать</button><button class="action" type="button" id="touchBox" aria-pressed="false">Рамка</button><button class="action" type="button" id="touchDone" hidden>Готово</button><button class="action" type="button" id="touchClear" aria-label="Снять выделение" hidden>Сбросить</button><button class="action" type="button" id="touchCompare" hidden>Сравнить</button><button class="action" type="button" id="touchCopy" hidden>Копировать</button></div><div id="touchModeHint" role="status" aria-live="polite"></div>';
   L.DomEvent.disableClickPropagation(box);L.DomEvent.disableScrollPropagation(box);return box;
 };
 touchControl.addTo(map);
 document.getElementById("touchSelect").addEventListener("click",()=>setTouchSelection(touchSelectionMode&&!boxSelectionMode?"off":"tap"));
 document.getElementById("touchBox").addEventListener("click",()=>setTouchSelection(boxSelectionMode?"off":"box"));
 document.getElementById("touchDone").addEventListener("click",()=>setTouchSelection("off"));
+document.getElementById("touchClear").addEventListener("click",clearSelection);
 document.getElementById("touchCompare").addEventListener("click",()=>{renderComparison();document.getElementById("compareDialog").showModal();});
 document.getElementById("touchCopy").addEventListener("click",copySelectedCads);
 // No visible editor controls or hints: hold the title for two seconds to use the existing password gate.
@@ -1178,7 +1185,7 @@ document.addEventListener("keydown",e=>{
   if(dragSelection){finishSelection(false);return;}
   if(document.getElementById("compareDialog").open||e.target.closest("input,textarea,select"))return;
   if(touchSelectionMode){setTouchSelection("off");return;}
-  selectedCads.clear();onlySelected=false;apply();
+  clearSelection();
 });
 updateTouchTools();
 document.getElementById("objectCard").addEventListener("click",e=>{if(e.target.closest("[data-card-close]")){document.getElementById("objectCard").hidden=true;return;}if(e.target.closest("[data-card-details]")){objectDetailsExpanded=!objectDetailsExpanded;renderObjectCard(popupObject);}});
